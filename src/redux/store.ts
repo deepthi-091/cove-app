@@ -1,10 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
-import createSagaMiddleware from 'redux-saga';
 import { cartReducer } from './cart/cartReducer';
 import productReducer from './products/productSlice';
 import { rootSaga } from './sagas/rootSaga';
 
-const sagaMiddleware = (createSagaMiddleware as any)();
+// redux-saga middleware - import from lib path for compatibility
+const createSagaMiddleware = require('redux-saga/lib').default;
+const sagaMiddleware = createSagaMiddleware();
 
 export const store = configureStore({
   reducer: {
