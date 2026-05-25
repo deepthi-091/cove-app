@@ -1,15 +1,21 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
+import { Provider } from 'react-redux';
+import { store } from '@/redux/store';
+import { AuthProvider } from '@/context/AuthContext';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Provider store={store}>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="tabs" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+          <Stack.Screen name="product/[id]" options={{ presentation: 'card', headerShown: false }} />
+          <Stack.Screen name="report-damage" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="cart" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+        </Stack>
+      </AuthProvider>
+    </Provider>
   );
 }
