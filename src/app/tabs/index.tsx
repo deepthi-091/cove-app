@@ -13,19 +13,21 @@ import { router } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
 import { STRINGS } from '@/constants/strings';
-import { CategoryBar, ProductCard } from '@/components';
+import { CategoryBar, ProductCard, LoginBadge } from '@/components';
 import { CATEGORIES } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchProductsRequest } from '@/redux/products/productSagaActions';
 import { setSelectedCategory as setSelectedCategoryRedux } from '@/redux/products/productSlice';
+import type { Category } from '@/types';
 
 export default function Home() {
   const { user } = useAuth();
   const dispatch = useAppDispatch();
-  const { products, loading, selectedCategory } = useAppSelector(state => state.products);
+  const { products, loading, selectedCategory, categories } = useAppSelector(state => state.products);
   const cartTotal = useAppSelector(state => state.cart.totalItems);
   const [searchQuery, setSearchQuery] = useState('');
+  const displayCategories: Category[] = categories.length > 0 ? categories : CATEGORIES;
 
   useEffect(() => {
     dispatch(fetchProductsRequest({ category: selectedCategory }));
@@ -49,6 +51,7 @@ export default function Home() {
       {loading && products.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading products...</Text>
         </View>
       ) : (
         <FlatList
@@ -72,17 +75,20 @@ export default function Home() {
                   <Text style={styles.logo}>C</Text>
                   {user && <Text style={styles.greeting}>Welcome, {user.name}!</Text>}
                 </View>
-                <TouchableOpacity
-                  style={styles.cartIcon}
-                  onPress={() => router.push('/cart' as any)}
-                >
-                  <Text style={styles.cartText}>🛒</Text>
-                  {cartTotal > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>{cartTotal}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                <View style={styles.headerRight}>
+                  <LoginBadge />
+                  <TouchableOpacity
+                    style={styles.cartIcon}
+                    onPress={() => router.push('/cart' as any)}
+                  >
+                    <Text style={styles.cartText}>🛒</Text>
+                    {cartTotal > 0 && (
+                      <View style={styles.cartBadge}>
+                        <Text style={styles.cartBadgeText}>{cartTotal}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <Text style={styles.title}>{STRINGS.home_discover}</Text>
@@ -98,7 +104,7 @@ export default function Home() {
               </View>
 
               <CategoryBar
-                categories={CATEGORIES}
+                categories={displayCategories}
                 selectedId={selectedCategory}
                 onSelectCategory={handleCategoryChange}
               />
@@ -138,22 +144,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingText: {
+    fontSize: SIZES.fontSize.sm,
+    color: COLORS.lightText,
+    marginTop: SIZES.md,
+  },
   listContent: {
     paddingHorizontal: SIZES.screenPadding,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: SIZES.xl,
+    paddingVertical: SIZES.sm,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.sm,
   },
   logo: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: COLORS.primary,
+    marginBottom: SIZES.xs,
   },
   greeting: {
-    fontSize: SIZES.fontSize.sm,
+    fontSize: SIZES.fontSize.xs,
     color: COLORS.lightText,
     marginTop: SIZES.xs,
   },
@@ -161,7 +179,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: SIZES.borderRadius.md,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative' as any,
@@ -187,7 +205,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: SIZES.fontSize['2xl'],
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: SIZES.lg,
   },
@@ -202,6 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.lg,
     fontSize: SIZES.fontSize.sm,
     color: COLORS.text,
+    backgroundColor: COLORS.lightGray,
   },
   columnWrapper: {
     justifyContent: 'space-between',
@@ -209,38 +228,43 @@ const styles = StyleSheet.create({
   banner: {
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadius.lg,
-    padding: SIZES.lg,
+    padding: SIZES.xl,
     marginVertical: SIZES.xl,
     justifyContent: 'center',
+    elevation: 3,
   },
   bannerLabel: {
-    fontSize: SIZES.fontSize.sm,
+    fontSize: SIZES.fontSize.xs,
     fontWeight: '600',
     color: COLORS.white,
     marginBottom: SIZES.sm,
+    opacity: 0.9,
   },
   bannerText: {
-    fontSize: SIZES.fontSize.lg,
-    fontWeight: 'bold',
+    fontSize: SIZES.fontSize.xl,
+    fontWeight: '700',
     color: COLORS.white,
     marginBottom: SIZES.md,
   },
   bannerButton: {
     alignSelf: 'flex-start',
+    marginTop: SIZES.md,
   },
   bannerButtonText: {
     color: COLORS.white,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: SIZES.fontSize.sm,
   },
   trendingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: SIZES.lg,
+    marginTop: SIZES.lg,
   },
   trendingTitle: {
     fontSize: SIZES.fontSize.lg,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: COLORS.text,
   },
   seeAllLink: {

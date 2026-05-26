@@ -96,18 +96,11 @@ export const storage = {
     }
   },
 
-  // Reviews storage
-  async setReviews(reviews: any[]) {
+  // Reviews storage (per product)
+  async getReviews(productId?: string) {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(reviews));
-    } catch (error) {
-      console.error('Error saving reviews:', error);
-    }
-  },
-
-  async getReviews() {
-    try {
-      const reviews = await AsyncStorage.getItem(STORAGE_KEYS.REVIEWS);
+      const key = productId ? `${STORAGE_KEYS.REVIEWS}_${productId}` : STORAGE_KEYS.REVIEWS;
+      const reviews = await AsyncStorage.getItem(key);
       return reviews ? JSON.parse(reviews) : [];
     } catch (error) {
       console.error('Error getting reviews:', error);
@@ -115,11 +108,21 @@ export const storage = {
     }
   },
 
+  async setReviews(reviews: any[], productId?: string) {
+    try {
+      const key = productId ? `${STORAGE_KEYS.REVIEWS}_${productId}` : STORAGE_KEYS.REVIEWS;
+      await AsyncStorage.setItem(key, JSON.stringify(reviews));
+    } catch (error) {
+      console.error('Error saving reviews:', error);
+    }
+  },
+
   async addReview(review: any) {
     try {
-      const reviews = await this.getReviews();
-      const updated = [...reviews, { id: Date.now(), ...review }];
-      await this.setReviews(updated);
+      const productId = review.productId;
+      const reviews = await this.getReviews(productId);
+      const updated = [...(reviews || []), { id: Date.now(), ...review }];
+      await this.setReviews(updated, productId);
       return updated;
     } catch (error) {
       console.error('Error adding review:', error);

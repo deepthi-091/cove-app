@@ -7,11 +7,12 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
-import { ProductCard } from '@/components';
+import { ProductCard, LoginBadge } from '@/components';
 import { api } from '@/utils/api';
 import type { Product } from '@/types';
 
@@ -19,17 +20,26 @@ export default function Search() {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.length > 2) {
       setSearched(true);
+      setLoading(true);
       try {
         const data = await api.searchProducts(query);
         setResults(data);
       } catch (error) {
         console.error('Error searching:', error);
+        setResults([]);
+      } finally {
+        setLoading(false);
       }
+    } else if (query.length === 0) {
+      setSearched(false);
+      setResults([]);
+      setLoading(false);
     }
   };
 
@@ -37,6 +47,7 @@ export default function Search() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Search</Text>
+        <LoginBadge />
       </View>
 
       <View style={styles.searchBar}>
@@ -50,13 +61,20 @@ export default function Search() {
         />
       </View>
 
-      {searched && results.length === 0 && (
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Searching...</Text>
+        </View>
+      )}
+
+      {!loading && searched && results.length === 0 && (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No products found</Text>
         </View>
       )}
 
-      {!searched && (
+      {!loading && !searched && (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Start typing to search</Text>
         </View>
@@ -91,6 +109,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: SIZES.screenPadding,
     paddingVertical: SIZES.lg,
     borderBottomWidth: 1,
@@ -122,6 +143,16 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: SIZES.fontSize.base,
     color: COLORS.lightText,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: SIZES.fontSize.sm,
+    color: COLORS.lightText,
+    marginTop: SIZES.md,
   },
   listContent: {
     paddingHorizontal: SIZES.screenPadding,

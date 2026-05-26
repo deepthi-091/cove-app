@@ -1,6 +1,9 @@
-import { all } from 'redux-saga/effects';
-import { watchProductSaga } from './productSaga';
+import { all, fork } from 'redux-saga/effects';
+import { watchProductSaga, initializeCategoriesSaga } from './productSaga';
 
 export function* rootSaga() {
-  yield all([watchProductSaga()]);
+  yield all([
+    fork(watchProductSaga),
+    fork(initializeCategoriesSaga),
+  ]);
 }

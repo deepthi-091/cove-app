@@ -5,17 +5,13 @@ import { useAuth } from '@/context/AuthContext';
 import { COLORS } from '@/constants/colors';
 
 export default function Index() {
-  const { isAuthenticated, loading } = useAuth();
+  const { loading } = useAuth();
 
   useEffect(() => {
     if (!loading) {
-      if (isAuthenticated) {
-        router.replace('tabs' as any);
-      } else {
-        router.replace('login' as any);
-      }
+      router.replace('splash' as any);
     }
-  }, [isAuthenticated, loading]);
+  }, [loading]);
 
   if (loading) {
     return (

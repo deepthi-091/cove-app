@@ -3,3 +3,7 @@ export { RatingStars } from './RatingStars';
 export { ProductCard } from './ProductCard';
 export { CategoryBar } from './CategoryBar';
 export { Input } from './Input';
+export { Snackbar } from './Snackbar';
+export { CommentsSection } from './CommentsSection';
+export { ReviewModal } from './ReviewModal';
+export { LoginBadge } from './LoginBadge';

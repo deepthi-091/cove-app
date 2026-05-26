@@ -14,13 +14,21 @@ export interface Product {
 }
 
 export interface User {
-  id: string;
+  id: string | number;
   name: string;
   email: string;
+  username?: string;
+  phone?: string;
+  website?: string;
   avatar?: string;
-  orders: number;
-  reviews: number;
-  purchases: number;
+  orders?: number;
+  reviews?: number;
+  purchases?: number;
+  company?: {
+    name: string;
+    catchPhrase?: string;
+    bs?: string;
+  };
 }
 
 export interface Review {

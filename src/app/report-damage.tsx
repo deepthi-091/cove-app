@@ -1,21 +1,89 @@
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
 import { STRINGS } from '@/constants/strings';
 import { Button } from '@/components';
 
 export default function ReportDamage() {
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleTakePhoto = async () => {
+    try {
+      setLoading(true);
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        alert('Camera permission is required');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      alert('Failed to take photo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadFromLibrary = async () => {
+    try {
+      setLoading(true);
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        alert('Media library permission is required');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      alert('Failed to pick photo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!photoUri) {
+      alert('Please capture or upload a photo');
+      return;
+    }
+    alert(`Damage report submitted with photo`);
+    router.replace('/tabs' as any);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
           <Text style={styles.backButton}>✕</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Report Damage</Text>
@@ -26,35 +94,38 @@ export default function ReportDamage() {
         <Text style={styles.step}>{STRINGS.report_damage_subtitle}</Text>
         <Text style={styles.instruction}>{STRINGS.report_damage_instruction}</Text>
 
-        <View style={styles.cameraPlaceholder}>
-          <View style={styles.frameBorder} />
-          <Text style={styles.cameraIcon}>📸</Text>
-        </View>
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+        ) : (
+          <View style={styles.cameraPlaceholder}>
+            <View style={styles.frameBorder} />
+            {loading ? (
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            ) : (
+              <Text style={styles.cameraIcon}>📸</Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.buttonGroup}>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Video</Text>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleTakePhoto} disabled={loading}>
+            <Text style={styles.secondaryButtonText}>Camera</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Photos</Text>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleUploadFromLibrary} disabled={loading}>
+            <Text style={styles.secondaryButtonText}>Gallery</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Live</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>+</Text>
-          </TouchableOpacity>
+          {photoUri && (
+            <TouchableOpacity style={styles.clearButton} onPress={() => setPhotoUri(null)}>
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </TouchableOpacity>
+          )}
         </View>
-
-        <TouchableOpacity style={styles.uploadButton}>
-          <Text style={styles.uploadButtonText}>📁 Upload from library instead</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
         <Button
-          label="Take Photo"
-          onPress={() => router.back()}
+          label={photoUri ? 'Submit Report' : 'Take Photo'}
+          onPress={photoUri ? handleSubmit : handleTakePhoto}
         />
       </View>
     </SafeAreaView>
@@ -147,17 +218,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
-  uploadButton: {
-    paddingVertical: SIZES.lg,
-    alignItems: 'center',
-  },
-  uploadButtonText: {
-    fontSize: SIZES.fontSize.sm,
-    fontWeight: '600',
-    color: COLORS.lightText,
+  photoPreview: {
+    width: '100%',
+    height: 300,
+    borderRadius: SIZES.borderRadius.lg,
+    marginBottom: SIZES.xl,
   },
   footer: {
     paddingHorizontal: SIZES.screenPadding,
     paddingVertical: SIZES.lg,
+  },
+  clearButton: {
+    paddingVertical: SIZES.md,
+    paddingHorizontal: SIZES.lg,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: SIZES.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#E0C0B0',
+  },
+  clearButtonText: {
+    fontSize: SIZES.fontSize.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });

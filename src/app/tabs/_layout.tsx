@@ -55,6 +55,14 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>👤</Text>,
         }}
       />
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: 'Users',
+          tabBarLabel: 'Users',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>👥</Text>,
+        }}
+      />
     </Tabs>
   );
 }

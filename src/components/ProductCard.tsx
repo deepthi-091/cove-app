@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Image,
@@ -10,6 +10,7 @@ import {
 import { Product } from '../types';
 import { COLORS, SIZES } from '../constants';
 import { RatingStars } from './RatingStars';
+import { storage } from '@/utils/storage';
 
 interface ProductCardProps {
   product: Product;
@@ -23,6 +24,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onPress,
 }) => {
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  useEffect(() => {
+    loadWishlistStatus();
+  }, [product.id]);
+
+  const loadWishlistStatus = async () => {
+    try {
+      const wishlist = await storage.getWishlist();
+      setIsWishlisted(wishlist.includes(product.id));
+    } catch (error) {
+      console.error('Error loading wishlist:', error);
+    }
+  };
+
+  const handleWishlist = async (e: any) => {
+    e.stopPropagation();
+    try {
+      const updated = await storage.toggleWishlist(product.id);
+      setIsWishlisted(updated.includes(product.id));
+    } catch (error) {
+      console.error('Error updating wishlist:', error);
+    }
+  };
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -40,6 +66,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <Text style={styles.saleText}>SALE</Text>
           </View>
         )}
+        <TouchableOpacity
+          onPress={handleWishlist}
+          style={styles.wishlistButton}
+        >
+          <Text style={styles.wishlistIcon}>
+            {isWishlisted ? '❤️' : '🤍'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
@@ -88,6 +122,25 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: SIZES.fontSize.xs,
     fontWeight: '600',
+  },
+  wishlistButton: {
+    position: 'absolute',
+    bottom: SIZES.md,
+    right: SIZES.md,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  wishlistIcon: {
+    fontSize: 20,
   },
   content: {
     paddingHorizontal: SIZES.sm,

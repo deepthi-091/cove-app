@@ -44,18 +44,21 @@ export const api = {
   // User authentication
   async login(email: string, password: string): Promise<any> {
     await delay(1000);
-    if (email && password) {
+    const validEmails = ['hannah@example.com', 'test@example.com', 'user@example.com'];
+    const validPassword = 'password';
+
+    if (validEmails.includes(email.toLowerCase()) && password === validPassword) {
       return {
         id: '1',
         name: email.split('@')[0],
         email,
-        avatar: 'HM',
+        avatar: email.substring(0, 2).toUpperCase(),
         orders: 15,
         reviews: 8,
         purchases: 6,
       };
     }
-    throw new Error('Invalid credentials');
+    throw new Error('Invalid email or password. Try: hannah@example.com / password');
   },
 
   async logout(): Promise<void> {
@@ -64,8 +67,20 @@ export const api = {
 
   async signup(name: string, email: string, password: string): Promise<any> {
     await delay(1500);
+    if (!name || !email || !password) {
+      throw new Error('All fields are required');
+    }
+    if (name.length < 2) {
+      throw new Error('Name must be at least 2 characters');
+    }
+    if (!email.includes('@')) {
+      throw new Error('Invalid email format');
+    }
+    if (password.length < 6) {
+      throw new Error('Password must be at least 6 characters');
+    }
     return {
-      id: '1',
+      id: Math.random().toString(36).substring(2, 9),
       name,
       email,
       avatar: name.substring(0, 2).toUpperCase(),

@@ -11,13 +11,38 @@ import {
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
-import { Button } from '@/components';
+import { Button, LoginBadge } from '@/components';
+import { useAuth } from '@/context/AuthContext';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { removeFromCart, updateQuantity, clearCart } from '@/redux/cart/cartActions';
 
 export default function Cart() {
+  const { isAuthenticated } = useAuth();
   const dispatch = useAppDispatch();
   const { items, totalPrice, totalItems } = useAppSelector(state => state.cart);
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
+            <Text style={styles.backButton}>‹ Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Cart</Text>
+          <LoginBadge />
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>🔐</Text>
+          <Text style={styles.emptyText}>Login Required</Text>
+          <Text style={styles.emptySubtext}>Please login to view your cart</Text>
+          <Button
+            label="Go to Login"
+            onPress={() => router.replace('/login' as any)}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const handleRemove = (id: string) => {
     dispatch(removeFromCart(id));
@@ -43,18 +68,18 @@ export default function Cart() {
   };
 
   const handleCheckout = () => {
-    Alert.alert('Checkout', 'Proceeding to checkout...');
+    router.push('/checkout');
   };
 
   if (items.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
             <Text style={styles.backButton}>‹ Back</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cart</Text>
-          <View style={styles.headerRight} />
+          <LoginBadge />
         </View>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🛒</Text>
@@ -72,13 +97,11 @@ export default function Cart() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
           <Text style={styles.backButton}>‹ Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cart ({totalItems})</Text>
-        <TouchableOpacity onPress={handleClearCart}>
-          <Text style={styles.clearButton}>Clear</Text>
-        </TouchableOpacity>
+        <LoginBadge />
       </View>
 
       <FlatList

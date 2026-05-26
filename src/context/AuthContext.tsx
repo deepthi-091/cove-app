@@ -9,6 +9,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -46,6 +47,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const signup = async (name: string, email: string, password: string) => {
+    try {
+      const userData = await api.signup(name, email, password);
+      await storage.setUser(userData);
+      setUser(userData);
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await api.logout();
@@ -63,6 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated: !!user,
     loading,
     login,
+    signup,
     logout,
   };
 

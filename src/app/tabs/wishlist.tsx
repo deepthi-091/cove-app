@@ -10,9 +10,9 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
-import { ProductCard } from '@/components';
+import { ProductCard, LoginBadge } from '@/components';
 import { storage } from '@/utils/storage';
-import { api } from '@/utils/api';
+import productsApiService from '@/api/products/productsApi';
 import type { Product } from '@/types';
 
 export default function Wishlist() {
@@ -29,11 +29,21 @@ export default function Wishlist() {
     setLoading(true);
     try {
       const ids = await storage.getWishlist();
-      const allProducts = await api.getProducts();
-      const wishlistProducts = allProducts.filter(p => ids.includes(p.id));
-      setProducts(wishlistProducts);
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        setProducts([]);
+        return;
+      }
+
+      const response = await productsApiService.fetchProducts();
+      if (response.success && response.data) {
+        const wishlistProducts = response.data.filter(p => ids.includes(p.id));
+        setProducts(wishlistProducts);
+      } else {
+        setProducts([]);
+      }
     } catch (error) {
       console.error('Error loading wishlist:', error);
+      setProducts([]);
     }
     setLoading(false);
   };
@@ -41,8 +51,11 @@ export default function Wishlist() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Wishlist</Text>
-        <Text style={styles.count}>{products.length} items</Text>
+        <View>
+          <Text style={styles.title}>Wishlist</Text>
+          <Text style={styles.count}>{products.length} items</Text>
+        </View>
+        <LoginBadge />
       </View>
 
       {loading ? (
@@ -84,6 +97,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: SIZES.screenPadding,
     paddingVertical: SIZES.lg,
     borderBottomWidth: 1,

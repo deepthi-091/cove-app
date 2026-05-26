@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "coveapp",
     "userInterfaceStyle": "automatic",
+    "appEntry": "src/app",
     "ios": {
       "icon": "./assets/expo.icon"
     },

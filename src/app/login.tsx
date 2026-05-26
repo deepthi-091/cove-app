@@ -108,10 +108,22 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity
+          style={styles.guestButton}
+          onPress={() => router.replace('/tabs' as any)}
+        >
+          <Text style={styles.guestButtonText}>Continue as Guest</Text>
+        </TouchableOpacity>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {STRINGS.login_new_user}{' '}
-            <Text style={styles.createLink}>{STRINGS.login_create_account}</Text>
+            <Text
+              style={styles.createLink}
+              onPress={() => router.push('/signup')}
+            >
+              {STRINGS.login_create_account}
+            </Text>
           </Text>
         </View>
       </ScrollView>
@@ -216,6 +228,16 @@ const styles = StyleSheet.create({
     fontSize: SIZES.fontSize.base,
     fontWeight: '600',
     color: COLORS.text,
+  },
+  guestButton: {
+    paddingVertical: SIZES.md,
+    marginVertical: SIZES.md,
+    alignItems: 'center',
+  },
+  guestButtonText: {
+    fontSize: SIZES.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   footer: {
     alignItems: 'center',
