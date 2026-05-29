@@ -12,7 +12,7 @@ import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
 import { ProductCard, LoginBadge } from '@/components';
 import { storage } from '@/utils/storage';
-import productsApiService from '@/api/products/productsApi';
+import { fetchProducts } from '@/api/products/productsApi';
 import type { Product } from '@/types';
 
 export default function Wishlist() {
@@ -34,7 +34,7 @@ export default function Wishlist() {
         return;
       }
 
-      const response = await productsApiService.fetchProducts();
+      const response = await fetchProducts();
       if (response.success && response.data) {
         const wishlistProducts = response.data.filter(p => ids.includes(p.id));
         setProducts(wishlistProducts);

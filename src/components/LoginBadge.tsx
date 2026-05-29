@@ -17,11 +17,11 @@ export const LoginBadge: React.FC = () => {
   };
 
   const handlePress = () => {
-    router.replace('/login' as any);
+    router.push('/login' as any);
   };
 
   return (
-    <TouchableOpacity style={styles.badge} onPress={handlePress}>
+    <TouchableOpacity activeOpacity={0.7} style={styles.badge} onPress={handlePress}>
       <Text style={styles.badgeText}>{getBadgeText()}</Text>
     </TouchableOpacity>
   );

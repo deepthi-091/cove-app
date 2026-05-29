@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { COLORS, SIZES } from '@/constants';
 import { Button, Input, Snackbar } from '@/components';
-import commentsApiService, { Comment, CommentPayload } from '@/api/comments/commentsApi';
+import { getCommentsByProduct, createComment, updateComment } from '@/api/comments/commentsApi';
+import type { Comment, CommentPayload } from '@/types/comments';
 
 interface SnackbarState {
   visible: boolean;
@@ -43,11 +44,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
 
   useEffect(() => {
     loadComments();
+    // Update formData postId when productId changes
+    setFormData(prev => ({ ...prev, postId: productId }));
   }, [productId]);
 
   const loadComments = async () => {
     setLoading(true);
-    const response = await commentsApiService.getCommentsByProduct(productId);
+    const response = await getCommentsByProduct(productId);
 
     if (response.success && response.data) {
       setComments(response.data.slice(0, 5)); // Show only first 5 comments
@@ -72,8 +75,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
   };
 
   const openAddModal = () => {
+    console.log('openAddModal called');
     resetForm();
+    console.log('resetForm called, setting showModal to true');
     setShowModal(true);
+    console.log('setShowModal(true) called');
   };
 
   const openEditModal = (comment: Comment) => {
@@ -88,39 +94,67 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
   };
 
   const handleSaveComment = async () => {
-    if (!formData.name.trim() || !formData.email.trim() || !formData.body.trim()) {
-      showSnackbar('Please fill in all fields', 'error');
-      return;
-    }
+    try {
+      console.log('Form data before validation:', formData);
 
-    if (editingComment) {
-      // Update comment
-      const response = await commentsApiService.updateComment(
-        Number(editingComment.id),
-        formData
-      );
-      if (response.success) {
-        showSnackbar(response.message, 'success');
-        setComments(
-          comments.map((c) =>
-            c.id === editingComment.id ? { ...c, ...formData } : c
-          )
+      // Validate form
+      if (!formData.name.trim()) {
+        showSnackbar('Please enter your name', 'error');
+        return;
+      }
+      if (!formData.email.trim()) {
+        showSnackbar('Please enter your email', 'error');
+        return;
+      }
+      if (!formData.body.trim()) {
+        showSnackbar('Please enter a comment', 'error');
+        return;
+      }
+
+      console.log('Form validation passed, submitting comment...');
+
+      if (editingComment) {
+        // Update comment
+        console.log('Updating comment:', editingComment.id);
+        const response = await updateComment(
+          Number(editingComment.id),
+          formData
         );
+        console.log('Update response:', response);
+        if (response.success) {
+          showSnackbar(response.message, 'success');
+          setComments(
+            comments.map((c) =>
+              c.id === editingComment.id ? { ...c, ...formData } : c
+            )
+          );
+        } else {
+          showSnackbar(response.message || 'Failed to update comment', 'error');
+        }
       } else {
-        showSnackbar(response.message, 'error');
+        // Create comment
+        console.log('Creating new comment with data:', formData);
+        const response = await createComment(formData);
+        console.log('Create comment full response:', response);
+
+        if (response.success && response.data) {
+          showSnackbar(response.message, 'success');
+          setComments([response.data, ...comments]);
+          setShowModal(false);
+          resetForm();
+        } else {
+          console.error('Comment creation failed:', response.message);
+          showSnackbar(response.message || 'Failed to post comment', 'error');
+        }
+        return;
       }
-    } else {
-      // Create comment
-      const response = await commentsApiService.createComment(formData);
-      if (response.success && response.data) {
-        showSnackbar(response.message, 'success');
-        setComments([response.data, ...comments]);
-      } else {
-        showSnackbar(response.message, 'error');
-      }
+
+      setShowModal(false);
+      resetForm();
+    } catch (error: any) {
+      console.error('Error in handleSaveComment:', error);
+      showSnackbar('An unexpected error occurred', 'error');
     }
-    setShowModal(false);
-    resetForm();
   };
 
   const renderComment = ({ item }: { item: Comment }) => (
@@ -152,7 +186,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
 
       <View style={styles.header}>
         <Text style={styles.title}>💬 Comments ({comments.length})</Text>
-        <TouchableOpacity style={styles.addCommentButton} onPress={openAddModal}>
+        <TouchableOpacity
+          style={styles.addCommentButton}
+          onPress={openAddModal}
+          activeOpacity={0.7}
+        >
           <Text style={styles.addCommentButtonText}>+ Add Comment</Text>
         </TouchableOpacity>
       </View>

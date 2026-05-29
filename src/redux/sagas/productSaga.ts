@@ -1,6 +1,6 @@
 import { call, put, takeLatest } from 'redux-saga/effects';
 import type { Product } from '@/types';
-import productsApiService from '@/api/products/productsApi';
+import { fetchProducts, fetchProductById, searchProducts, fetchByCategory, fetchCategories } from '@/api/products/productsApi';
 import { setProducts, setSelectedProduct, setCategories, setLoading, setError } from '../products/productSlice';
 import { FETCH_PRODUCTS_REQUEST, FETCH_PRODUCT_BY_ID_REQUEST, FetchProductsRequestAction, FetchProductByIdRequestAction } from '../products/productSagaActions';
 
@@ -13,11 +13,11 @@ function* fetchProductsSaga(action: FetchProductsRequestAction) {
     let response;
 
     if (search) {
-      response = yield call(productsApiService.searchProducts.bind(productsApiService), search);
+      response = yield call(searchProducts, search);
     } else if (category && category !== 'all') {
-      response = yield call(productsApiService.fetchByCategory.bind(productsApiService), category);
+      response = yield call(fetchByCategory, category);
     } else {
-      response = yield call(productsApiService.fetchProducts.bind(productsApiService));
+      response = yield call(fetchProducts);
     }
 
     if (response.success && response.data) {
@@ -37,7 +37,7 @@ function* fetchProductByIdSaga(action: FetchProductByIdRequestAction) {
     yield put(setLoading(true));
     yield put(setError(null));
 
-    const response = yield call(productsApiService.fetchProductById.bind(productsApiService), action.payload);
+    const response = yield call(fetchProductById, action.payload);
     if (response.success && response.data) {
       yield put(setSelectedProduct(response.data));
     } else {
@@ -52,7 +52,7 @@ function* fetchProductByIdSaga(action: FetchProductByIdRequestAction) {
 
 function* fetchCategoriesSaga() {
   try {
-    const response = yield call(productsApiService.fetchCategories.bind(productsApiService));
+    const response = yield call(fetchCategories);
     if (response.success && response.data) {
       yield put(setCategories(response.data));
     }

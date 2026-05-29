@@ -15,7 +15,7 @@ import { useFocusEffect } from 'expo-router';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
 import { Button, Input, Snackbar, LoginBadge } from '@/components';
-import usersApiService, { UserPayload } from '@/api/users/usersApi';
+import { getUsers, createUser, updateUser, deleteUser, UserPayload } from '@/api/users/usersApi';
 import { User } from '@/types';
 
 interface SnackbarState {
@@ -53,7 +53,7 @@ export default function Users() {
 
   const loadUsers = async () => {
     setLoading(true);
-    const response = await usersApiService.getUsers();
+    const response = await getUsers();
 
     if (response.success && response.data) {
       setUsers(response.data as User[]);
@@ -105,7 +105,7 @@ export default function Users() {
 
     if (editingUser) {
       // Update user
-      const response = await usersApiService.updateUser(Number(editingUser.id), formData);
+      const response = await updateUser(Number(editingUser.id), formData);
       setShowModal(false);
       if (response.success) {
         setUsers(
@@ -119,7 +119,7 @@ export default function Users() {
       }
     } else {
       // Create user
-      const response = await usersApiService.createUser(formData);
+      const response = await createUser(formData);
       setShowModal(false);
       if (response.success && response.data) {
         setUsers([...users, response.data as User]);
@@ -140,7 +140,7 @@ export default function Users() {
         {
           text: 'Delete',
           onPress: async () => {
-            const response = await usersApiService.deleteUser(Number(user.id));
+            const response = await deleteUser(Number(user.id));
             if (response.success) {
               showSnackbar('User deleted successfully', 'success');
               setUsers(users.filter((u) => u.id !== user.id));
