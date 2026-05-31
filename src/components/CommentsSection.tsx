@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,28 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
 import { COLORS, SIZES } from '@/constants';
 import { Button, Input, Snackbar } from '@/components';
 import { getCommentsByProduct, createComment, updateComment } from '@/api/comments/commentsApi';
+import { realtimeComments } from '@/services/realtimeDb';
+import { firestoreComments } from '@/services/firestore';
+import { isFirebaseConfigured } from '@/lib/firebase';
+import { storage } from '@/utils/storage';
 import type { Comment, CommentPayload } from '@/types/comments';
+import type { DatabaseReference } from 'firebase/database';
+
+const DRAFT_KEY_PREFIX = 'draft_comment_';
+
+const commentSchema = Yup.object({
+  name: Yup.string().min(2, 'Name must be at least 2 characters').required('Name is required'),
+  email: Yup.string().email('Enter a valid email address').required('Email is required'),
+  body: Yup.string().min(10, 'Comment must be at least 10 characters').required('Comment is required'),
+});
 
 interface SnackbarState {
   visible: boolean;
@@ -29,31 +46,65 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
-  const [snackbar, setSnackbar] = useState<SnackbarState>({
-    visible: false,
-    message: '',
-    type: 'success',
-  });
+  const [draftBody, setDraftBody] = useState('');
+  const [snackbar, setSnackbar] = useState<SnackbarState>({ visible: false, message: '', type: 'success' });
+  const rtdbRef = useRef<DatabaseReference | null>(null);
+  const isRealtime = isFirebaseConfigured();
 
-  const [formData, setFormData] = useState<CommentPayload>({
-    name: '',
-    email: '',
-    body: '',
-    postId: productId,
-  });
+  const draftKey = `${DRAFT_KEY_PREFIX}${productId}`;
 
   useEffect(() => {
-    loadComments();
-    // Update formData postId when productId changes
-    setFormData(prev => ({ ...prev, postId: productId }));
+    loadDraft();
+
+    if (isRealtime) {
+      setLoading(true);
+      rtdbRef.current = realtimeComments.subscribe(productId, (liveComments) => {
+        if (liveComments.length > 0) {
+          setComments(liveComments.slice(0, 10));
+        } else {
+          // Fall back to API if RTDB is empty
+          loadFromApi();
+        }
+        setLoading(false);
+      });
+    } else {
+      loadFromApi();
+    }
+
+    return () => {
+      realtimeComments.unsubscribe(rtdbRef.current);
+    };
   }, [productId]);
 
-  const loadComments = async () => {
+  const loadDraft = async () => {
+    try {
+      const drafts = await storage.getReviews();
+      const draft = drafts?.find((d: any) => d.key === draftKey);
+      if (draft) setDraftBody(draft.body || '');
+    } catch { /* ignore */ }
+  };
+
+  const saveDraft = async (body: string) => {
+    try {
+      const drafts = (await storage.getReviews()) || [];
+      const filtered = drafts.filter((d: any) => d.key !== draftKey);
+      if (body.trim()) {
+        filtered.push({ key: draftKey, body, savedAt: Date.now() });
+      }
+      await storage.setReviews(filtered);
+    } catch { /* ignore */ }
+  };
+
+  const clearDraft = async () => {
+    await saveDraft('');
+    setDraftBody('');
+  };
+
+  const loadFromApi = async () => {
     setLoading(true);
     const response = await getCommentsByProduct(productId);
-
     if (response.success && response.data) {
-      setComments(response.data.slice(0, 5)); // Show only first 5 comments
+      setComments(response.data.slice(0, 5));
     } else {
       showSnackbar(response.message, 'error');
     }
@@ -64,110 +115,95 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
     setSnackbar({ visible: true, message, type });
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      body: '',
-      postId: productId,
-    });
-    setEditingComment(null);
-  };
-
   const openAddModal = () => {
-    console.log('openAddModal called');
-    resetForm();
-    console.log('resetForm called, setting showModal to true');
+    setEditingComment(null);
     setShowModal(true);
-    console.log('setShowModal(true) called');
   };
 
   const openEditModal = (comment: Comment) => {
     setEditingComment(comment);
-    setFormData({
-      name: comment.name,
-      email: comment.email,
-      body: comment.body,
-      postId: comment.postId,
-    });
     setShowModal(true);
   };
 
-  const handleSaveComment = async () => {
-    try {
-      console.log('Form data before validation:', formData);
+  const handleSave = async (values: { name: string; email: string; body: string }) => {
+    const payload: CommentPayload = { ...values, postId: productId };
 
-      // Validate form
-      if (!formData.name.trim()) {
-        showSnackbar('Please enter your name', 'error');
-        return;
-      }
-      if (!formData.email.trim()) {
-        showSnackbar('Please enter your email', 'error');
-        return;
-      }
-      if (!formData.body.trim()) {
-        showSnackbar('Please enter a comment', 'error');
-        return;
-      }
-
-      console.log('Form validation passed, submitting comment...');
-
-      if (editingComment) {
-        // Update comment
-        console.log('Updating comment:', editingComment.id);
-        const response = await updateComment(
-          Number(editingComment.id),
-          formData
-        );
-        console.log('Update response:', response);
-        if (response.success) {
-          showSnackbar(response.message, 'success');
-          setComments(
-            comments.map((c) =>
-              c.id === editingComment.id ? { ...c, ...formData } : c
-            )
-          );
+    if (editingComment) {
+      if (isRealtime) {
+        const ok = await firestoreComments.update(String(editingComment.id), values);
+        if (ok) {
+          showSnackbar('Comment updated!', 'success');
         } else {
-          showSnackbar(response.message || 'Failed to update comment', 'error');
+          // Fallback to REST API
+          const res = await updateComment(Number(editingComment.id), payload);
+          if (res.success) {
+            showSnackbar(res.message, 'success');
+            setComments(prev => prev.map(c => c.id === editingComment.id ? { ...c, ...values } : c));
+          } else {
+            showSnackbar(res.message, 'error');
+          }
         }
       } else {
-        // Create comment
-        console.log('Creating new comment with data:', formData);
-        const response = await createComment(formData);
-        console.log('Create comment full response:', response);
-
-        if (response.success && response.data) {
-          showSnackbar(response.message, 'success');
-          setComments([response.data, ...comments]);
-          setShowModal(false);
-          resetForm();
+        const res = await updateComment(Number(editingComment.id), payload);
+        if (res.success) {
+          showSnackbar(res.message, 'success');
+          setComments(prev => prev.map(c => c.id === editingComment.id ? { ...c, ...values } : c));
         } else {
-          console.error('Comment creation failed:', response.message);
-          showSnackbar(response.message || 'Failed to post comment', 'error');
+          showSnackbar(res.message, 'error');
+          return;
         }
-        return;
       }
-
-      setShowModal(false);
-      resetForm();
-    } catch (error: any) {
-      console.error('Error in handleSaveComment:', error);
-      showSnackbar('An unexpected error occurred', 'error');
+    } else {
+      if (isRealtime) {
+        // Try Realtime DB first for instant update
+        const key = await realtimeComments.create(productId, payload);
+        if (key) {
+          showSnackbar('Comment posted!', 'success');
+          await clearDraft();
+        } else {
+          // Fallback to Firestore
+          const doc = await firestoreComments.create(payload);
+          if (doc) {
+            showSnackbar('Comment posted!', 'success');
+            await clearDraft();
+          } else {
+            // Final fallback to REST API
+            const res = await createComment(payload);
+            if (res.success && res.data) {
+              showSnackbar(res.message, 'success');
+              setComments(prev => [res.data!, ...prev]);
+              await clearDraft();
+            } else {
+              showSnackbar(res.message || 'Failed to post comment', 'error');
+              return;
+            }
+          }
+        }
+      } else {
+        const res = await createComment(payload);
+        if (res.success && res.data) {
+          showSnackbar(res.message, 'success');
+          setComments(prev => [res.data!, ...prev]);
+          await clearDraft();
+        } else {
+          showSnackbar(res.message || 'Failed to post comment', 'error');
+          return;
+        }
+      }
     }
+
+    setShowModal(false);
+    setEditingComment(null);
   };
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentCard}>
       <View style={styles.commentHeader}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.commentName}>{item.name}</Text>
           <Text style={styles.commentEmail}>{item.email}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => openEditModal(item)}
-        >
+        <TouchableOpacity style={styles.editButton} onPress={() => openEditModal(item)}>
           <Text style={styles.editButtonText}>✏️ Edit</Text>
         </TouchableOpacity>
       </View>
@@ -181,16 +217,19 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
         visible={snackbar.visible}
         message={snackbar.message}
         type={snackbar.type}
-        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+        onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
       />
 
       <View style={styles.header}>
-        <Text style={styles.title}>💬 Comments ({comments.length})</Text>
-        <TouchableOpacity
-          style={styles.addCommentButton}
-          onPress={openAddModal}
-          activeOpacity={0.7}
-        >
+        <View>
+          <Text style={styles.title}>
+            💬 Comments ({comments.length})
+          </Text>
+          {isRealtime && (
+            <Text style={styles.liveBadge}>🔴 Live</Text>
+          )}
+        </View>
+        <TouchableOpacity style={styles.addCommentButton} onPress={openAddModal} activeOpacity={0.7}>
           <Text style={styles.addCommentButtonText}>+ Add Comment</Text>
         </TouchableOpacity>
       </View>
@@ -201,225 +240,135 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
         </View>
       ) : comments.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No comments yet. Be the first to comment!</Text>
+          <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
           <Button label="Add Comment" onPress={openAddModal} />
         </View>
       ) : (
         <FlatList
           data={comments}
           renderItem={renderComment}
-          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+          keyExtractor={item => String(item.id)}
           scrollEnabled={false}
-          nestedScrollEnabled={false}
         />
       )}
 
-      {/* Add/Edit Comment Modal */}
       <Modal
         visible={showModal}
         animationType="slide"
         transparent
-        onRequestClose={() => {
-          setShowModal(false);
-          resetForm();
-        }}
+        onRequestClose={() => { setShowModal(false); setEditingComment(null); }}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowModal(false);
-                  resetForm();
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={() => { setShowModal(false); setEditingComment(null); }}>
+                  <Text style={styles.closeButton}>✕</Text>
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>
+                  {editingComment ? 'Edit Comment' : 'Add Comment'}
+                </Text>
+                <View style={{ width: 30 }} />
+              </View>
+
+              <Formik
+                initialValues={{
+                  name: editingComment?.name || '',
+                  email: editingComment?.email || '',
+                  body: editingComment?.body || draftBody,
                 }}
+                enableReinitialize
+                validationSchema={commentSchema}
+                onSubmit={handleSave}
               >
-                <Text style={styles.closeButton}>✕</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>
-                {editingComment ? 'Edit Comment' : 'Add Comment'}
-              </Text>
-              <View style={{ width: 30 }} />
-            </View>
+                {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+                  <>
+                    <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+                      <Input
+                        label="Name *"
+                        placeholder="Your name"
+                        value={values.name}
+                        onChangeText={handleChange('name')}
+                        onBlur={handleBlur('name')}
+                        error={touched.name ? errors.name : undefined}
+                        autoCapitalize="words"
+                      />
 
-            <ScrollView
-              style={styles.formContainer}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.fieldLabel}>Name *</Text>
-              <Input
-                placeholder="Your name"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-              />
+                      <Input
+                        label="Email *"
+                        placeholder="your@email.com"
+                        value={values.email}
+                        onChangeText={handleChange('email')}
+                        onBlur={handleBlur('email')}
+                        error={touched.email ? errors.email : undefined}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
 
-              <Text style={styles.fieldLabel}>Email *</Text>
-              <Input
-                placeholder="Your email"
-                value={formData.email}
-                keyboardType="email-address"
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
-              />
+                      <Input
+                        label="Comment *"
+                        placeholder="Share your thoughts (min. 10 characters)..."
+                        value={values.body}
+                        onChangeText={(text) => {
+                          handleChange('body')(text);
+                          if (!editingComment) saveDraft(text);
+                        }}
+                        onBlur={handleBlur('body')}
+                        error={touched.body ? errors.body : undefined}
+                        multiline
+                        numberOfLines={4}
+                        style={styles.textAreaInput}
+                      />
 
-              <Text style={styles.fieldLabel}>Comment *</Text>
-              <Input
-                placeholder="Write your comment here..."
-                value={formData.body}
-                onChangeText={(text) => setFormData({ ...formData, body: text })}
-                multiline
-                numberOfLines={4}
-                style={styles.textAreaInput}
-              />
-            </ScrollView>
+                      {!editingComment && draftBody.length > 0 && values.body === draftBody && (
+                        <Text style={styles.draftIndicator}>📝 Draft restored</Text>
+                      )}
+                    </ScrollView>
 
-            <View style={styles.modalFooter}>
-              <Button
-                label={editingComment ? 'Update Comment' : 'Post Comment'}
-                onPress={handleSaveComment}
-              />
+                    <View style={styles.modalFooter}>
+                      <Button
+                        label={isSubmitting ? 'Saving...' : (editingComment ? 'Update Comment' : 'Post Comment')}
+                        onPress={() => handleSubmit()}
+                      />
+                    </View>
+                  </>
+                )}
+              </Formik>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: SIZES.lg,
-    paddingHorizontal: SIZES.screenPadding,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.md,
-  },
-  title: {
-    fontSize: SIZES.fontSize.base,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  addCommentButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
-    borderRadius: SIZES.borderRadius.md,
-  },
-  addCommentButtonText: {
-    color: COLORS.white,
-    fontWeight: '600',
-    fontSize: SIZES.fontSize.xs,
-  },
-  loadingContainer: {
-    paddingVertical: SIZES.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    paddingVertical: SIZES.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: SIZES.fontSize.sm,
-    color: COLORS.lightText,
-    textAlign: 'center',
-    marginBottom: SIZES.md,
-  },
-  commentCard: {
-    backgroundColor: COLORS.lightGray,
-    borderRadius: SIZES.borderRadius.md,
-    padding: SIZES.md,
-    marginBottom: SIZES.md,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SIZES.sm,
-  },
-  commentName: {
-    fontSize: SIZES.fontSize.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SIZES.xs,
-  },
-  commentEmail: {
-    fontSize: SIZES.fontSize.xs,
-    color: COLORS.lightText,
-  },
-  editButton: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SIZES.sm,
-    paddingVertical: SIZES.xs,
-    borderRadius: SIZES.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  editButtonText: {
-    fontSize: SIZES.fontSize.xs,
-    fontWeight: '500',
-    color: COLORS.text,
-  },
-  commentBody: {
-    fontSize: SIZES.fontSize.sm,
-    color: COLORS.text,
-    lineHeight: 18,
-    marginTop: SIZES.sm,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: SIZES.borderRadius.lg,
-    borderTopRightRadius: SIZES.borderRadius.lg,
-    maxHeight: '90%',
-    flexDirection: 'column',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: SIZES.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  modalTitle: {
-    fontSize: SIZES.fontSize.base,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  closeButton: {
-    fontSize: 24,
-    color: COLORS.text,
-    fontWeight: '600',
-  },
-  formContainer: {
-    paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: SIZES.lg,
-  },
-  fieldLabel: {
-    fontSize: SIZES.fontSize.sm,
-    fontWeight: '600',
-    color: COLORS.darkGray,
-    marginBottom: SIZES.sm,
-    marginTop: SIZES.md,
-  },
-  textAreaInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  modalFooter: {
-    paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: SIZES.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
+  container: { marginVertical: SIZES.lg, paddingHorizontal: SIZES.screenPadding },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SIZES.md },
+  title: { fontSize: SIZES.fontSize.base, fontWeight: '600', color: COLORS.text },
+  liveBadge: { fontSize: SIZES.fontSize.xs, color: '#e53e3e', marginTop: 2 },
+  addCommentButton: { backgroundColor: COLORS.primary, paddingHorizontal: SIZES.md, paddingVertical: SIZES.sm, borderRadius: SIZES.borderRadius.md },
+  addCommentButtonText: { color: COLORS.white, fontWeight: '600', fontSize: SIZES.fontSize.xs },
+  loadingContainer: { paddingVertical: SIZES.lg, alignItems: 'center' },
+  emptyContainer: { paddingVertical: SIZES.xl, alignItems: 'center' },
+  emptyText: { fontSize: SIZES.fontSize.sm, color: COLORS.lightText, marginBottom: SIZES.md },
+  commentCard: { backgroundColor: COLORS.lightGray, borderRadius: SIZES.borderRadius.md, padding: SIZES.md, marginBottom: SIZES.md, borderLeftWidth: 4, borderLeftColor: COLORS.primary },
+  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SIZES.sm },
+  commentName: { fontSize: SIZES.fontSize.sm, fontWeight: '600', color: COLORS.text, marginBottom: SIZES.xs },
+  commentEmail: { fontSize: SIZES.fontSize.xs, color: COLORS.lightText },
+  editButton: { backgroundColor: COLORS.white, paddingHorizontal: SIZES.sm, paddingVertical: SIZES.xs, borderRadius: SIZES.borderRadius.sm, borderWidth: 1, borderColor: COLORS.border },
+  editButtonText: { fontSize: SIZES.fontSize.xs, fontWeight: '500', color: COLORS.text },
+  commentBody: { fontSize: SIZES.fontSize.sm, color: COLORS.text, lineHeight: 18, marginTop: SIZES.sm },
+  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: SIZES.borderRadius.lg, borderTopRightRadius: SIZES.borderRadius.lg, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIZES.screenPadding, paddingVertical: SIZES.lg, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalTitle: { fontSize: SIZES.fontSize.base, fontWeight: '600', color: COLORS.text },
+  closeButton: { fontSize: 24, color: COLORS.text, fontWeight: '600' },
+  formContainer: { paddingHorizontal: SIZES.screenPadding, paddingVertical: SIZES.lg },
+  textAreaInput: { minHeight: 100, textAlignVertical: 'top' },
+  draftIndicator: { fontSize: SIZES.fontSize.xs, color: COLORS.primary, marginTop: -SIZES.md, marginBottom: SIZES.md },
+  modalFooter: { paddingHorizontal: SIZES.screenPadding, paddingVertical: SIZES.lg, borderTopWidth: 1, borderTopColor: COLORS.border },
 });
