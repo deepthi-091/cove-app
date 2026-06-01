@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, Image, ScrollView, ActivityIndicator, Ale
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/colors';
-import { Button, LoginBadge } from '@/components';
+import { Button, LoginBadge, CommentsSection, ReviewModal } from '@/components';
 import { useAuth } from '@/context/AuthContext';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchProductByIdRequest } from '@/redux/products/productSagaActions';
 import { setSelectedProduct } from '@/redux/products/productSlice';
 import { addToCart } from '@/redux/cart/cartActions';
+import { storage } from '@/utils/storage';
+import type { Review } from '@/types';
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
@@ -16,17 +18,30 @@ export default function ProductDetail() {
   const dispatch = useAppDispatch();
   const { selectedProduct: product, loading } = useAppSelector(state => state.products);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     if (id) {
       console.log('📡 Fetching product:', id);
       dispatch(fetchProductByIdRequest(id as string));
+      loadReviews();
     }
 
     return () => {
       dispatch(setSelectedProduct(null));
     };
   }, [id, dispatch]);
+
+  const loadReviews = async () => {
+    try {
+      const storedReviews = await storage.getReviews(id as string);
+      setReviews(Array.isArray(storedReviews) ? storedReviews : []);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      setReviews([]);
+    }
+  };
 
   const handleAddToCart = () => {
     if (!isAuthenticated) {
@@ -152,7 +167,68 @@ export default function ProductDetail() {
             label={isAuthenticated ? `Add to Cart - $${product.price}` : 'Login to Add to Cart'}
             onPress={handleAddToCart}
           />
+
+          {/* Write Review Button */}
+          <TouchableOpacity
+            style={{ paddingVertical: 16, alignItems: 'center' }}
+            onPress={() => setShowReviewModal(true)}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary }}>✍️ Write a Review</Text>
+          </TouchableOpacity>
+
+          {/* Existing Reviews */}
+          {reviews.length > 0 && (
+            <View style={{ marginTop: 20 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>
+                Your Reviews ({reviews.length})
+              </Text>
+              {reviews.map((review) => (
+                <View
+                  key={review.id}
+                  style={{
+                    backgroundColor: COLORS.lightGray,
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 12,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.text }}>
+                      {'⭐'.repeat(review.rating)} {review.rating}/5
+                    </Text>
+                    <Text style={{ fontSize: 12, color: COLORS.lightText }}>
+                      {new Date(review.date).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, color: COLORS.text, lineHeight: 20 }}>
+                    {review.text}
+                  </Text>
+                  {review.images && review.images.length > 0 && (
+                    <Image
+                      source={{ uri: review.images[0] }}
+                      style={{ width: '100%', height: 150, borderRadius: 8, marginTop: 8 }}
+                      resizeMode="cover"
+                    />
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
+
+        {/* ReviewModal */}
+        <ReviewModal
+          productId={id as string}
+          visible={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          onSubmit={(newReview) => {
+            setReviews([newReview, ...reviews]);
+            setShowReviewModal(false);
+          }}
+        />
+
+        {/* Comments Section */}
+        <CommentsSection productId={Number(product.id) || 1} />
       </ScrollView>
     </SafeAreaView>
   );
