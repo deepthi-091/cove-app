@@ -17,11 +17,25 @@ export const LoginBadge: React.FC = () => {
   };
 
   const handlePress = () => {
-    router.push('/login' as any);
+    console.log('LoginBadge pressed - isAuthenticated:', isAuthenticated);
+
+    if (isAuthenticated) {
+      // If logged in, go to profile
+      console.log('User is authenticated, navigating to profile');
+      router.push('/tabs/profile' as any);
+    } else {
+      // If not logged in, go to login
+      console.log('User is not authenticated, navigating to login');
+      router.push('/login' as any);
+    }
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.7} style={styles.badge} onPress={handlePress}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      style={styles.badge}
+      onPress={handlePress}
+    >
       <Text style={styles.badgeText}>{getBadgeText()}</Text>
     </TouchableOpacity>
   );

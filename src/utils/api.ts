@@ -1,30 +1,12 @@
-import { PRODUCTS, CATEGORIES } from '../data/mockData';
-import { Product, Category } from '../types';
+import { CATEGORIES } from '../data/mockData';
+import { Category } from '../types';
 
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const api = {
-  // Products
-  async getProducts(search?: string): Promise<Product[]> {
-    await delay(500);
-    if (!search) return PRODUCTS;
-    return PRODUCTS.filter(p =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase())
-    );
-  },
-
-  async getProductById(id: string): Promise<Product | undefined> {
-    await delay(300);
-    return PRODUCTS.find(p => p.id === id);
-  },
-
-  async getProductsByCategory(category: string): Promise<Product[]> {
-    await delay(400);
-    if (category === '1') return PRODUCTS;
-    return PRODUCTS.filter(p => p.category === CATEGORIES.find(c => c.id === category)?.name);
-  },
+  // NOTE: Product endpoints now use Redux + real API (productsApi.ts)
+  // Keep only non-product functions here
 
   // Categories
   async getCategories(): Promise<Category[]> {
@@ -32,13 +14,11 @@ export const api = {
     return CATEGORIES;
   },
 
-  // Search
-  async searchProducts(query: string): Promise<Product[]> {
-    await delay(600);
-    return PRODUCTS.filter(p =>
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.description?.toLowerCase().includes(query.toLowerCase())
-    );
+  // Search - NOTE: Real implementation now uses Redux + productsApi
+  async searchProducts(query: string): Promise<any[]> {
+    // Placeholder - redirect to Redux/productsApi for real implementation
+    await delay(300);
+    return [];
   },
 
   // User authentication
@@ -96,8 +76,8 @@ export const api = {
     return [
       {
         id: 'ORD001',
-        products: [PRODUCTS[0]],
-        total: PRODUCTS[0].price,
+        products: [],
+        total: 99.99,
         date: new Date().toISOString(),
         status: 'delivered',
       },

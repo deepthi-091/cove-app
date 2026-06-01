@@ -11,16 +11,14 @@ import {
 } from 'react-native';
 import { COLORS, SIZES, STRINGS } from '../constants';
 import { CategoryBar, ProductCard } from '../components';
-import { CATEGORIES, PRODUCTS } from '../data/mockData';
+import { CATEGORIES } from '../data/mockData';
 
 export const Home: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('1');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredProducts =
-    selectedCategory === '1'
-      ? PRODUCTS
-      : PRODUCTS.filter((p) => p.category === CATEGORIES.find((c) => c.id === selectedCategory)?.name);
+  // NOTE: Using Redux for product data - this screen is legacy
+  const filteredProducts: any[] = [];
 
   return (
     <SafeAreaView style={styles.container}>

@@ -15,6 +15,7 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { COLORS, SIZES } from '@/constants';
 import { Button, Input, Snackbar } from '@/components';
+import { useAuth } from '@/context/AuthContext';
 import { getCommentsByProduct, createComment, updateComment } from '@/api/comments/commentsApi';
 import { realtimeComments } from '@/services/realtimeDb';
 import { firestoreComments } from '@/services/firestore';
@@ -25,10 +26,11 @@ import type { DatabaseReference } from 'firebase/database';
 
 const DRAFT_KEY_PREFIX = 'draft_comment_';
 
+// Only validate comment body - name and email come from authenticated user
 const commentSchema = Yup.object({
-  name: Yup.string().min(2, 'Name must be at least 2 characters').required('Name is required'),
-  email: Yup.string().email('Enter a valid email address').required('Email is required'),
-  body: Yup.string().min(10, 'Comment must be at least 10 characters').required('Comment is required'),
+  body: Yup.string()
+    .min(10, 'Comment must be at least 10 characters')
+    .required('Please write a comment'),
 });
 
 interface SnackbarState {
@@ -42,6 +44,7 @@ interface CommentsSectionProps {
 }
 
 export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) => {
+  const { user, isAuthenticated } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -52,6 +55,20 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
   const isRealtime = isFirebaseConfigured();
 
   const draftKey = `${DRAFT_KEY_PREFIX}${productId}`;
+
+  // Show login message if user is not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>💬 Comments ({comments.length})</Text>
+        </View>
+        <View style={styles.loginPrompt}>
+          <Text style={styles.loginPromptText}>Please login to view and add comments</Text>
+        </View>
+      </View>
+    );
+  }
 
   useEffect(() => {
     loadDraft();
@@ -125,8 +142,14 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
     setShowModal(true);
   };
 
-  const handleSave = async (values: { name: string; email: string; body: string }) => {
-    const payload: CommentPayload = { ...values, postId: productId };
+  const handleSave = async (values: { body: string }) => {
+    // Automatically use authenticated user's name and email
+    const payload: CommentPayload = {
+      name: user?.name || 'Anonymous',
+      email: user?.email || '',
+      body: values.body,
+      postId: productId,
+    };
 
     if (editingComment) {
       if (isRealtime) {
@@ -276,8 +299,6 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
 
               <Formik
                 initialValues={{
-                  name: editingComment?.name || '',
-                  email: editingComment?.email || '',
                   body: editingComment?.body || draftBody,
                 }}
                 enableReinitialize
@@ -287,29 +308,15 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
                 {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
                   <>
                     <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-                      <Input
-                        label="Name *"
-                        placeholder="Your name"
-                        value={values.name}
-                        onChangeText={handleChange('name')}
-                        onBlur={handleBlur('name')}
-                        error={touched.name ? errors.name : undefined}
-                        autoCapitalize="words"
-                      />
+                      {/* Display authenticated user info */}
+                      <View style={styles.userInfoBox}>
+                        <Text style={styles.userLabel}>Posting as:</Text>
+                        <Text style={styles.userName}>{user?.name || 'Anonymous'}</Text>
+                        <Text style={styles.userEmail}>{user?.email}</Text>
+                      </View>
 
                       <Input
-                        label="Email *"
-                        placeholder="your@email.com"
-                        value={values.email}
-                        onChangeText={handleChange('email')}
-                        onBlur={handleBlur('email')}
-                        error={touched.email ? errors.email : undefined}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                      />
-
-                      <Input
-                        label="Comment *"
+                        label="Your Comment *"
                         placeholder="Share your thoughts (min. 10 characters)..."
                         value={values.body}
                         onChangeText={(text) => {
@@ -319,7 +326,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
                         onBlur={handleBlur('body')}
                         error={touched.body ? errors.body : undefined}
                         multiline
-                        numberOfLines={4}
+                        numberOfLines={5}
                         style={styles.textAreaInput}
                       />
 
@@ -371,4 +378,39 @@ const styles = StyleSheet.create({
   textAreaInput: { minHeight: 100, textAlignVertical: 'top' },
   draftIndicator: { fontSize: SIZES.fontSize.xs, color: COLORS.primary, marginTop: -SIZES.md, marginBottom: SIZES.md },
   modalFooter: { paddingHorizontal: SIZES.screenPadding, paddingVertical: SIZES.lg, borderTopWidth: 1, borderTopColor: COLORS.border },
+  loginPrompt: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SIZES.screenPadding,
+  },
+  loginPromptText: {
+    fontSize: SIZES.fontSize.base,
+    color: COLORS.lightText,
+    textAlign: 'center',
+  },
+  userInfoBox: {
+    backgroundColor: COLORS.lightGray,
+    padding: SIZES.lg,
+    borderRadius: SIZES.borderRadius.md,
+    marginBottom: SIZES.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+  },
+  userLabel: {
+    fontSize: SIZES.fontSize.xs,
+    color: COLORS.lightText,
+    marginBottom: SIZES.xs,
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: SIZES.fontSize.base,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SIZES.xs,
+  },
+  userEmail: {
+    fontSize: SIZES.fontSize.sm,
+    color: COLORS.lightText,
+  },
 });

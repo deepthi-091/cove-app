@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -89,7 +90,18 @@ export default function Home() {
           renderItem={({ item }) => (
             <ProductCard
               product={item}
-              onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.id } } as any)}
+              onPress={() => {
+                try {
+                  console.log('Home screen: Navigating to product', item.id, 'type:', typeof item.id);
+                  router.push({
+                    pathname: '/product/[id]',
+                    params: { id: String(item.id) }
+                  } as any);
+                } catch (error) {
+                  console.error('Home screen navigation error:', error);
+                  Alert.alert('Error', 'Failed to navigate to product');
+                }
+              }}
               onAddToCart={() => handleSwipeAddToCart(item)}
             />
           )}

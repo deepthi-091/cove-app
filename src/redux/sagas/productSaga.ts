@@ -4,7 +4,7 @@ import { fetchProducts, fetchProductById, searchProducts, fetchByCategory, fetch
 import { setProducts, setSelectedProduct, setCategories, setLoading, setError } from '../products/productSlice';
 import { FETCH_PRODUCTS_REQUEST, FETCH_PRODUCT_BY_ID_REQUEST, FetchProductsRequestAction, FetchProductByIdRequestAction } from '../products/productSagaActions';
 
-function* fetchProductsSaga(action: FetchProductsRequestAction) {
+function* fetchProductsSaga(action: FetchProductsRequestAction): Generator<any, void, any> {
   try {
     yield put(setLoading(true));
     yield put(setError(null));
@@ -32,7 +32,7 @@ function* fetchProductsSaga(action: FetchProductsRequestAction) {
   }
 }
 
-function* fetchProductByIdSaga(action: FetchProductByIdRequestAction) {
+function* fetchProductByIdSaga(action: FetchProductByIdRequestAction): Generator<any, void, any> {
   try {
     yield put(setLoading(true));
     yield put(setError(null));
@@ -50,7 +50,7 @@ function* fetchProductByIdSaga(action: FetchProductByIdRequestAction) {
   }
 }
 
-function* fetchCategoriesSaga() {
+function* fetchCategoriesSaga(): Generator<any, void, any> {
   try {
     const response = yield call(fetchCategories);
     if (response.success && response.data) {
@@ -61,11 +61,11 @@ function* fetchCategoriesSaga() {
   }
 }
 
-export function* watchProductSaga() {
+export function* watchProductSaga(): Generator<any, void, any> {
   yield takeLatest(FETCH_PRODUCTS_REQUEST, fetchProductsSaga);
   yield takeLatest(FETCH_PRODUCT_BY_ID_REQUEST, fetchProductByIdSaga);
 }
 
-export function* initializeCategoriesSaga() {
+export function* initializeCategoriesSaga(): Generator<any, void, any> {
   yield call(fetchCategoriesSaga);
 }

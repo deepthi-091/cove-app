@@ -6,6 +6,7 @@ import {
   Dimensions,
   Animated,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Reanimated, {
@@ -16,6 +17,7 @@ import Reanimated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
+import { router } from 'expo-router';
 import { Product } from '../types';
 import { COLORS, SIZES } from '../constants';
 import { RatingStars } from './RatingStars';
@@ -118,18 +120,58 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onAd
       runOnJS(showLongPressMenu)();
     });
 
-  // Combine: simultaneous so both can be active
-  const combinedGesture = Gesture.Race(panGesture, longPressGesture);
+  // Gesture: tap → open product details
+  const tapGesture = Gesture.Tap()
+    .maxDuration(200)
+    .onFinalize(() => {
+      console.log('Tap gesture detected on product card');
+      runOnJS(handleTap)();
+    });
+
+  // Combine gestures: Exclusive tries in order (tap first, then pan/longpress)
+  const combinedGesture = Gesture.Exclusive(
+    tapGesture,
+    Gesture.Race(panGesture, longPressGesture)
+  );
 
   const handlePressIn = () => {
+    console.log('ProductCard: handlePressIn');
     Animated.spring(cardScale, { toValue: 0.96, useNativeDriver: true, speed: 40 }).start();
   };
+
   const handlePressOut = () => {
+    console.log('ProductCard: handlePressOut - calling onPress');
     Animated.spring(cardScale, { toValue: 1, useNativeDriver: true, speed: 20 }).start();
   };
 
+  const handleTap = () => {
+    try {
+      console.log('ProductCard: handleTap - navigating to product', product.id, 'type:', typeof product.id);
+      if (!product.id) {
+        console.error('ProductCard: ERROR - product.id is missing!');
+        Alert.alert('Error', 'Product ID is missing');
+        return;
+      }
+      onPress();
+    } catch (error) {
+      console.error('ProductCard: ERROR in handleTap:', error);
+      Alert.alert('Error', 'Failed to open product: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  };
+
   return (
-    <GestureDetector gesture={combinedGesture}>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => {
+        try {
+          console.log('TouchableOpacity pressed - navigating to product:', product.id);
+          handleTap();
+        } catch (error) {
+          console.error('TouchableOpacity error:', error);
+          Alert.alert('Error', 'Navigation failed: ' + (error instanceof Error ? error.message : String(error)));
+        }
+      }}
+    >
       <Reanimated.View style={[styles.container, swipeAnimatedStyle]}>
         <Animated.View style={{ transform: [{ scale: cardScale }] }}>
           {/* Swipe hint overlay */}
@@ -139,57 +181,54 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onAd
             </View>
           )}
 
-          {/* Tappable card */}
-          <Reanimated.View>
-            <View
-              style={styles.imageContainer}
-              // @ts-ignore — onStartShouldSetResponder makes tap work inside gesture detector
-              onStartShouldSetResponder={() => true}
-            >
-              <Animated.Image
-                source={{ uri: product.image }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-              {product.onSale && (
-                <View style={styles.saleTag}>
-                  <Text style={styles.saleText}>SALE</Text>
-                </View>
-              )}
+          {/* Tappable card - wrapped in gesture detector for swipe/longpress */}
+          <GestureDetector gesture={combinedGesture}>
+            <Reanimated.View>
+              <View
+                style={styles.imageContainer}
+              >
+                <Animated.Image
+                  source={{ uri: product.image }}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+                {product.onSale && (
+                  <View style={styles.saleTag}>
+                    <Text style={styles.saleText}>SALE</Text>
+                  </View>
+                )}
 
-              {/* Like button — Reanimated scale */}
-              <Reanimated.View style={[styles.wishlistButton, heartAnimatedStyle]}>
-                <Text
-                  style={styles.wishlistIcon}
-                  onPress={handleWishlistToggle}
-                >
-                  {isWishlisted ? '❤️' : '🤍'}
-                </Text>
-              </Reanimated.View>
-            </View>
-
-            <View
-              style={styles.content}
-              onStartShouldSetResponder={() => true}
-              onResponderGrant={() => { handlePressIn(); }}
-              onResponderRelease={() => { handlePressOut(); onPress(); }}
-            >
-              <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
-              <View style={styles.ratingContainer}>
-                <RatingStars rating={Math.round(product.rating)} size="sm" />
-                <Text style={styles.reviewCount}>{product.reviews}</Text>
+                {/* Like button — Reanimated scale */}
+                <Reanimated.View style={[styles.wishlistButton, heartAnimatedStyle]}>
+                  <Text
+                    style={styles.wishlistIcon}
+                    onPress={handleWishlistToggle}
+                  >
+                    {isWishlisted ? '❤️' : '🤍'}
+                  </Text>
+                </Reanimated.View>
               </View>
-              <Text style={styles.price}>${product.price}</Text>
-            </View>
-          </Reanimated.View>
 
-          {/* Swipe hint labels */}
-          <View style={styles.swipeHint}>
-            <Text style={styles.swipeHintText}>← ❤️  🛒 →</Text>
-          </View>
+              <View
+                style={styles.content}
+              >
+                <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
+                <View style={styles.ratingContainer}>
+                  <RatingStars rating={Math.round(product.rating)} size="sm" />
+                  <Text style={styles.reviewCount}>{product.reviews}</Text>
+                </View>
+                <Text style={styles.price}>${product.price}</Text>
+              </View>
+
+              {/* Swipe hint labels */}
+              <View style={styles.swipeHint}>
+                <Text style={styles.swipeHintText}>← ❤️  🛒 →</Text>
+              </View>
+            </Reanimated.View>
+          </GestureDetector>
         </Animated.View>
       </Reanimated.View>
-    </GestureDetector>
+    </TouchableOpacity>
   );
 };
 
