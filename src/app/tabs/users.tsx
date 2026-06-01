@@ -24,6 +24,15 @@ interface SnackbarState {
   type: 'success' | 'error' | 'info';
 }
 
+interface FormErrors {
+  name?: string;
+  email?: string;
+  username?: string;
+  phone?: string;
+  website?: string;
+  company?: string;
+}
+
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +43,8 @@ export default function Users() {
     message: '',
     type: 'success',
   });
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<UserPayload>({
@@ -53,14 +64,25 @@ export default function Users() {
 
   const loadUsers = async () => {
     setLoading(true);
-    const response = await getUsers();
+    try {
+      const response = await getUsers();
 
-    if (response.success && response.data) {
-      setUsers(response.data as User[]);
-    } else {
-      showSnackbar(response.message, 'error');
+      if (response.success && response.data) {
+        setUsers(response.data as User[]);
+      } else {
+        const errorMsg = response.message || 'Failed to load users';
+        showSnackbar(errorMsg, 'error');
+        console.error('Error loading users:', errorMsg);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      showSnackbar(
+        error instanceof Error ? error.message : 'Failed to load users. Please try again.',
+        'error'
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const showSnackbar = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -77,6 +99,83 @@ export default function Users() {
       company: { name: '' },
     });
     setEditingUser(null);
+    setFormErrors({});
+  };
+
+  // Validation functions
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const isValidPhone = (phone: string): boolean => {
+    // Simple phone validation: at least 10 digits
+    const phoneRegex = /^\d{10,}$/;
+    return phoneRegex.test(phone.replace(/\D/g, ''));
+  };
+
+  const isValidURL = (url: string): boolean => {
+    try {
+      new URL(url.startsWith('http') ? url : `https://${url}`);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+
+    // Name validation
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    } else if (formData.name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    } else if (formData.name.trim().length > 50) {
+      errors.name = 'Name must not exceed 50 characters';
+    }
+
+    // Username validation
+    if (!formData.username.trim()) {
+      errors.username = 'Username is required';
+    } else if (formData.username.trim().length < 3) {
+      errors.username = 'Username must be at least 3 characters';
+    } else if (formData.username.trim().length > 30) {
+      errors.username = 'Username must not exceed 30 characters';
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(formData.username)) {
+      errors.username = 'Username can only contain letters, numbers, hyphens, and underscores';
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!isValidEmail(formData.email.trim())) {
+      errors.email = 'Please enter a valid email address';
+    } else if (formData.email.trim().length > 100) {
+      errors.email = 'Email must not exceed 100 characters';
+    }
+
+    // Phone validation (optional but if provided, must be valid)
+    if (formData.phone && formData.phone.trim()) {
+      if (!isValidPhone(formData.phone)) {
+        errors.phone = 'Phone must contain at least 10 digits';
+      }
+    }
+
+    // Website validation (optional but if provided, must be valid)
+    if (formData.website && formData.website.trim()) {
+      if (!isValidURL(formData.website)) {
+        errors.website = 'Please enter a valid website URL';
+      }
+    }
+
+    // Company name validation (optional but if provided, max length)
+    if (formData.company?.name && formData.company.name.length > 100) {
+      errors.company = 'Company name must not exceed 100 characters';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const openAddModal = () => {
@@ -98,54 +197,91 @@ export default function Users() {
   };
 
   const handleSaveUser = async () => {
-    if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim()) {
-      showSnackbar('Please fill in all required fields', 'error');
+    // Validate form
+    if (!validateForm()) {
+      showSnackbar('Please fix the errors in the form', 'error');
       return;
     }
 
-    if (editingUser) {
-      // Update user
-      const response = await updateUser(Number(editingUser.id), formData);
-      setShowModal(false);
-      if (response.success) {
-        setUsers(
-          users.map((u) =>
-            u.id === editingUser.id ? { ...u, ...formData } : u
-          )
-        );
-        setTimeout(() => showSnackbar(response.message, 'success'), 350);
+    setSubmitting(true);
+
+    try {
+      if (editingUser) {
+        // Update user
+        const response = await updateUser(Number(editingUser.id), formData);
+
+        if (response.success) {
+          setUsers(
+            users.map((u) =>
+              u.id === editingUser.id ? { ...u, ...formData } : u
+            )
+          );
+          setShowModal(false);
+          resetForm();
+          setTimeout(() => showSnackbar('User updated successfully', 'success'), 350);
+        } else {
+          showSnackbar(response.message || 'Failed to update user', 'error');
+        }
       } else {
-        setTimeout(() => showSnackbar(response.message, 'error'), 350);
+        // Create user
+        // Check for duplicate email
+        if (users.some(u => u.email.toLowerCase() === formData.email.toLowerCase())) {
+          setFormErrors({ email: 'A user with this email already exists' });
+          showSnackbar('Email already exists', 'error');
+          return;
+        }
+
+        const response = await createUser(formData);
+
+        if (response.success && response.data) {
+          setUsers([...users, response.data as User]);
+          setShowModal(false);
+          resetForm();
+          setTimeout(() => showSnackbar('User added successfully', 'success'), 350);
+        } else {
+          const errorMsg = response.message || 'Failed to add user';
+          if (errorMsg.toLowerCase().includes('email')) {
+            setFormErrors({ email: errorMsg });
+          }
+          showSnackbar(errorMsg, 'error');
+        }
       }
-    } else {
-      // Create user
-      const response = await createUser(formData);
-      setShowModal(false);
-      if (response.success && response.data) {
-        setUsers([...users, response.data as User]);
-        setTimeout(() => showSnackbar(response.message, 'success'), 350);
-      } else {
-        setTimeout(() => showSnackbar(response.message, 'error'), 350);
-      }
+    } catch (error) {
+      console.error('Error saving user:', error);
+      showSnackbar(
+        error instanceof Error ? error.message : 'An error occurred while saving',
+        'error'
+      );
+    } finally {
+      setSubmitting(false);
     }
-    resetForm();
   };
 
   const handleDeleteUser = (user: User) => {
     Alert.alert(
       'Delete User',
-      `Are you sure you want to delete ${user.name}?`,
+      `Are you sure you want to delete ${user.name}? This action cannot be undone.`,
       [
         { text: 'Cancel', onPress: () => {} },
         {
           text: 'Delete',
           onPress: async () => {
-            const response = await deleteUser(Number(user.id));
-            if (response.success) {
-              showSnackbar('User deleted successfully', 'success');
-              setUsers(users.filter((u) => u.id !== user.id));
-            } else {
-              showSnackbar(response.message, 'error');
+            try {
+              const response = await deleteUser(Number(user.id));
+              if (response.success) {
+                setUsers(users.filter((u) => u.id !== user.id));
+                showSnackbar('User deleted successfully', 'success');
+              } else {
+                const errorMsg = response.message || 'Failed to delete user';
+                showSnackbar(errorMsg, 'error');
+                console.error('Error deleting user:', errorMsg);
+              }
+            } catch (error) {
+              console.error('Error deleting user:', error);
+              showSnackbar(
+                error instanceof Error ? error.message : 'Failed to delete user',
+                'error'
+              );
             }
           },
           style: 'destructive',
@@ -291,68 +427,81 @@ export default function Users() {
               <Input
                 placeholder="Enter user name"
                 value={formData.name}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, name: text })
-                }
+                onChangeText={(text) => {
+                  setFormData({ ...formData, name: text });
+                  if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                }}
               />
+              {formErrors.name && <Text style={styles.errorText}>{formErrors.name}</Text>}
 
               <Text style={styles.fieldLabel}>Username *</Text>
               <Input
                 placeholder="Enter username"
                 value={formData.username}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, username: text })
-                }
+                onChangeText={(text) => {
+                  setFormData({ ...formData, username: text });
+                  if (formErrors.username) setFormErrors({ ...formErrors, username: undefined });
+                }}
               />
+              {formErrors.username && <Text style={styles.errorText}>{formErrors.username}</Text>}
 
               <Text style={styles.fieldLabel}>Email *</Text>
               <Input
                 placeholder="Enter email"
                 value={formData.email}
                 keyboardType="email-address"
-                onChangeText={(text) =>
-                  setFormData({ ...formData, email: text })
-                }
+                onChangeText={(text) => {
+                  setFormData({ ...formData, email: text });
+                  if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                }}
               />
+              {formErrors.email && <Text style={styles.errorText}>{formErrors.email}</Text>}
 
               <Text style={styles.fieldLabel}>Phone</Text>
               <Input
                 placeholder="Enter phone number"
                 value={formData.phone}
                 keyboardType="phone-pad"
-                onChangeText={(text) =>
-                  setFormData({ ...formData, phone: text })
-                }
+                onChangeText={(text) => {
+                  setFormData({ ...formData, phone: text });
+                  if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined });
+                }}
               />
+              {formErrors.phone && <Text style={styles.errorText}>{formErrors.phone}</Text>}
 
               <Text style={styles.fieldLabel}>Website</Text>
               <Input
                 placeholder="Enter website"
                 value={formData.website}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, website: text })
-                }
+                onChangeText={(text) => {
+                  setFormData({ ...formData, website: text });
+                  if (formErrors.website) setFormErrors({ ...formErrors, website: undefined });
+                }}
               />
+              {formErrors.website && <Text style={styles.errorText}>{formErrors.website}</Text>}
 
               <Text style={styles.fieldLabel}>Company Name</Text>
               <Input
                 placeholder="Enter company name"
                 value={formData.company?.name}
-                onChangeText={(text) =>
+                onChangeText={(text) => {
                   setFormData({
                     ...formData,
                     company: { name: text },
-                  })
-                }
+                  });
+                  if (formErrors.company) setFormErrors({ ...formErrors, company: undefined });
+                }}
               />
+              {formErrors.company && <Text style={styles.errorText}>{formErrors.company}</Text>}
 
               <Text style={styles.requiredNote}>* Required fields</Text>
             </ScrollView>
 
             <View style={styles.modalFooter}>
               <Button
-                label={editingUser ? 'Update User' : 'Add User'}
+                label={submitting ? 'Saving...' : (editingUser ? 'Update User' : 'Add User')}
                 onPress={handleSaveUser}
+                disabled={submitting}
               />
             </View>
           </View>
@@ -539,6 +688,13 @@ const styles = StyleSheet.create({
     color: COLORS.lightText,
     marginTop: SIZES.lg,
     fontStyle: 'italic',
+  },
+  errorText: {
+    fontSize: SIZES.fontSize.xs,
+    color: COLORS.error,
+    marginTop: SIZES.xs,
+    marginBottom: SIZES.sm,
+    fontWeight: '500',
   },
   modalFooter: {
     paddingHorizontal: SIZES.screenPadding,
