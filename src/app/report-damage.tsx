@@ -3,242 +3,257 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as Yup from 'yup';
 import { COLORS } from '@/constants/colors';
 import { SIZES } from '@/constants/sizes';
-import { STRINGS } from '@/constants/strings';
-import { Button } from '@/components';
+import { Button, Input } from '@/components';
+
+const DAMAGE_CATEGORIES = [
+  { id: 'structural', label: '🏚️ Structural' },
+  { id: 'water', label: '💧 Water Damage' },
+  { id: 'electrical', label: '⚡ Electrical' },
+  { id: 'cosmetic', label: '🎨 Cosmetic' },
+  { id: 'mechanical', label: '⚙️ Mechanical' },
+  { id: 'other', label: '📦 Other' },
+];
+
+const schema = Yup.object({
+  description: Yup.string()
+    .min(20, 'Description must be at least 20 characters')
+    .required('Description is required'),
+  category: Yup.string().required('Please select a damage category'),
+});
+
+type FormValues = {
+  description: string;
+  category: string;
+};
 
 export default function ReportDamage() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    resolver: yupResolver(schema),
+    defaultValues: { description: '', category: '' },
+  });
 
   const handleTakePhoto = async () => {
+    setPhotoError('');
+    setPhotoLoading(true);
     try {
-      setLoading(true);
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        alert('Camera permission is required');
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        setPhotoError('Camera permission is required');
         return;
       }
-
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: [4, 3],
         quality: 0.7,
       });
-
-      if (!result.canceled) {
-        setPhotoUri(result.assets[0].uri);
-      }
-    } catch (error) {
-      alert('Failed to take photo');
+      if (!result.canceled) setPhotoUri(result.assets[0].uri);
+    } catch {
+      setPhotoError('Failed to open camera');
     } finally {
-      setLoading(false);
+      setPhotoLoading(false);
     }
   };
 
   const handleUploadFromLibrary = async () => {
+    setPhotoError('');
+    setPhotoLoading(true);
     try {
-      setLoading(true);
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        alert('Media library permission is required');
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setPhotoError('Media library permission is required');
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: [4, 3],
         quality: 0.7,
       });
-
-      if (!result.canceled) {
-        setPhotoUri(result.assets[0].uri);
-      }
-    } catch (error) {
-      alert('Failed to pick photo');
+      if (!result.canceled) setPhotoUri(result.assets[0].uri);
+    } catch {
+      setPhotoError('Failed to open gallery');
     } finally {
-      setLoading(false);
+      setPhotoLoading(false);
     }
   };
 
-  const handleSubmit = () => {
+  const onSubmit = async (values: FormValues) => {
     if (!photoUri) {
-      alert('Please capture or upload a photo');
+      setPhotoError('Please add a photo of the damage');
       return;
     }
-    alert(`Damage report submitted with photo`);
+    // Simulate submission — replace with actual API call
+    await new Promise(r => setTimeout(r, 800));
+    alert(`Report submitted!\n\nCategory: ${values.category}\nDescription: ${values.description}`);
     router.replace('/tabs' as any);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
-          <Text style={styles.backButton}>✕</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Report Damage</Text>
-        <View style={styles.space} />
-      </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
+            <Text style={styles.backButton}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Report Damage</Text>
+          <View style={styles.space} />
+        </View>
 
-      <View style={styles.content}>
-        <Text style={styles.step}>{STRINGS.report_damage_subtitle}</Text>
-        <Text style={styles.instruction}>{STRINGS.report_damage_instruction}</Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.step}>Step 1 of 2 — Add Photo</Text>
+          <Text style={styles.instruction}>Take or upload a clear photo of the damage</Text>
 
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-        ) : (
-          <View style={styles.cameraPlaceholder}>
-            <View style={styles.frameBorder} />
-            {loading ? (
-              <ActivityIndicator size="large" color={COLORS.primary} />
-            ) : (
-              <Text style={styles.cameraIcon}>📸</Text>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+          ) : (
+            <View style={styles.cameraPlaceholder}>
+              <View style={styles.frameBorder} />
+              {photoLoading ? (
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              ) : (
+                <Text style={styles.cameraIcon}>📸</Text>
+              )}
+            </View>
+          )}
+          {!!photoError && <Text style={styles.errorText}>{photoError}</Text>}
+
+          <View style={styles.photoButtonGroup}>
+            <TouchableOpacity style={styles.photoBtn} onPress={handleTakePhoto} disabled={photoLoading}>
+              <Text style={styles.photoBtnText}>📷 Camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.photoBtn} onPress={handleUploadFromLibrary} disabled={photoLoading}>
+              <Text style={styles.photoBtnText}>🖼️ Gallery</Text>
+            </TouchableOpacity>
+            {photoUri && (
+              <TouchableOpacity style={styles.clearBtn} onPress={() => setPhotoUri(null)}>
+                <Text style={styles.clearBtnText}>✕ Clear</Text>
+              </TouchableOpacity>
             )}
           </View>
-        )}
 
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleTakePhoto} disabled={loading}>
-            <Text style={styles.secondaryButtonText}>Camera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleUploadFromLibrary} disabled={loading}>
-            <Text style={styles.secondaryButtonText}>Gallery</Text>
-          </TouchableOpacity>
-          {photoUri && (
-            <TouchableOpacity style={styles.clearButton} onPress={() => setPhotoUri(null)}>
-              <Text style={styles.clearButtonText}>Clear</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+          <View style={styles.divider} />
 
-      <View style={styles.footer}>
-        <Button
-          label={photoUri ? 'Submit Report' : 'Take Photo'}
-          onPress={photoUri ? handleSubmit : handleTakePhoto}
-        />
-      </View>
+          <Text style={styles.step}>Step 2 of 2 — Describe the Damage</Text>
+
+          {/* Category picker */}
+          <Controller
+            control={control}
+            name="category"
+            render={({ field: { value, onChange } }) => (
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Damage Category *</Text>
+                <View style={styles.categoryGrid}>
+                  {DAMAGE_CATEGORIES.map(cat => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[styles.categoryChip, value === cat.id && styles.categoryChipSelected]}
+                      onPress={() => onChange(cat.id)}
+                    >
+                      <Text style={[styles.categoryChipText, value === cat.id && styles.categoryChipTextSelected]}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {errors.category && <Text style={styles.errorText}>{errors.category.message}</Text>}
+              </View>
+            )}
+          />
+
+          {/* Description */}
+          <Controller
+            control={control}
+            name="description"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <Input
+                label="Description *"
+                placeholder="Describe the damage in detail (min. 20 characters)..."
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.description?.message}
+                multiline
+                numberOfLines={5}
+                style={styles.textArea}
+              />
+            )}
+          />
+
+          <View style={styles.submitArea}>
+            <Button
+              label={isSubmitting ? 'Submitting...' : 'Submit Report'}
+              onPress={handleSubmit(onSubmit)}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
+  container: { flex: 1, backgroundColor: COLORS.white },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: SIZES.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: SIZES.screenPadding, paddingVertical: SIZES.lg,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  backButton: {
-    fontSize: SIZES.fontSize.xl,
-    color: COLORS.text,
-  },
-  headerTitle: {
-    fontSize: SIZES.fontSize.base,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  space: {
-    width: 24,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: SIZES.xl,
-    justifyContent: 'center',
-  },
-  step: {
-    fontSize: SIZES.fontSize.sm,
-    fontWeight: '600',
-    color: COLORS.lightText,
-    marginBottom: SIZES.sm,
-  },
-  instruction: {
-    fontSize: SIZES.fontSize.base,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SIZES.xl,
-  },
+  backButton: { fontSize: SIZES.fontSize.xl, color: COLORS.text },
+  headerTitle: { fontSize: SIZES.fontSize.base, fontWeight: '600', color: COLORS.text },
+  space: { width: 24 },
+  scrollContent: { paddingHorizontal: SIZES.screenPadding, paddingVertical: SIZES.xl },
+  step: { fontSize: SIZES.fontSize.xs, fontWeight: '700', color: COLORS.primary, marginBottom: SIZES.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
+  instruction: { fontSize: SIZES.fontSize.base, fontWeight: '600', color: COLORS.text, marginBottom: SIZES.lg },
   cameraPlaceholder: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: '#F0D8D0',
-    borderRadius: SIZES.borderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SIZES.xl,
-    position: 'relative',
-    borderWidth: 2,
-    borderColor: '#E0C0B0',
-    borderStyle: 'dashed',
+    width: '100%', aspectRatio: 4 / 3, backgroundColor: '#F0D8D0',
+    borderRadius: SIZES.borderRadius.lg, justifyContent: 'center', alignItems: 'center',
+    marginBottom: SIZES.md, borderWidth: 2, borderColor: '#E0C0B0', borderStyle: 'dashed',
   },
-  frameBorder: {
-    ...StyleSheet.absoluteFill,
-    borderWidth: 2,
-    borderColor: 'rgba(200, 150, 120, 0.3)',
-    borderRadius: SIZES.borderRadius.lg,
-    margin: 30,
-  },
-  cameraIcon: {
-    fontSize: 80,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SIZES.md,
-    marginBottom: SIZES.xl,
-  },
-  secondaryButton: {
-    paddingVertical: SIZES.md,
-    paddingHorizontal: SIZES.lg,
-    backgroundColor: COLORS.lightGray,
-    borderRadius: SIZES.borderRadius.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  secondaryButtonText: {
-    fontSize: SIZES.fontSize.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  photoPreview: {
-    width: '100%',
-    height: 300,
-    borderRadius: SIZES.borderRadius.lg,
-    marginBottom: SIZES.xl,
-  },
-  footer: {
-    paddingHorizontal: SIZES.screenPadding,
-    paddingVertical: SIZES.lg,
-  },
-  clearButton: {
-    paddingVertical: SIZES.md,
-    paddingHorizontal: SIZES.lg,
-    backgroundColor: COLORS.lightGray,
-    borderRadius: SIZES.borderRadius.md,
-    borderWidth: 1,
-    borderColor: '#E0C0B0',
-  },
-  clearButtonText: {
-    fontSize: SIZES.fontSize.sm,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
+  frameBorder: { ...StyleSheet.absoluteFill, borderWidth: 2, borderColor: 'rgba(200, 150, 120, 0.3)', borderRadius: SIZES.borderRadius.lg, margin: 30 },
+  cameraIcon: { fontSize: 64 },
+  photoPreview: { width: '100%', height: 240, borderRadius: SIZES.borderRadius.lg, marginBottom: SIZES.md },
+  photoButtonGroup: { flexDirection: 'row', gap: SIZES.md, marginBottom: SIZES.lg },
+  photoBtn: { flex: 1, paddingVertical: SIZES.md, backgroundColor: COLORS.lightGray, borderRadius: SIZES.borderRadius.md, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  photoBtnText: { fontSize: SIZES.fontSize.sm, fontWeight: '600', color: COLORS.text },
+  clearBtn: { paddingVertical: SIZES.md, paddingHorizontal: SIZES.lg, backgroundColor: COLORS.lightGray, borderRadius: SIZES.borderRadius.md, borderWidth: 1, borderColor: '#E0C0B0', alignItems: 'center' },
+  clearBtnText: { fontSize: SIZES.fontSize.sm, fontWeight: '600', color: COLORS.primary },
+  divider: { height: 1, backgroundColor: COLORS.border, marginVertical: SIZES.xl },
+  field: { marginBottom: SIZES.lg },
+  fieldLabel: { fontSize: SIZES.fontSize.sm, fontWeight: '600', color: COLORS.darkGray, marginBottom: SIZES.md },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SIZES.sm },
+  categoryChip: { paddingVertical: SIZES.sm, paddingHorizontal: SIZES.md, borderRadius: SIZES.borderRadius.lg, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.white },
+  categoryChipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  categoryChipText: { fontSize: SIZES.fontSize.sm, color: COLORS.text, fontWeight: '500' },
+  categoryChipTextSelected: { color: COLORS.white, fontWeight: '600' },
+  textArea: { minHeight: 120, textAlignVertical: 'top' },
+  errorText: { fontSize: SIZES.fontSize.xs, color: '#e53e3e', marginTop: SIZES.xs, marginBottom: SIZES.sm },
+  submitArea: { marginTop: SIZES.md, marginBottom: SIZES.xxxl },
 });

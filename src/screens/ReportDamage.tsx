@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   frameBorder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderWidth: 2,
     borderColor: 'rgba(200, 150, 120, 0.3)',
     borderRadius: SIZES.borderRadius.lg,
