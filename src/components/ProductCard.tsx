@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { Product } from '../types';
 import { COLORS, SIZES } from '../constants';
@@ -56,7 +57,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onAd
     >
       <View style={styles.container}>
         <View style={styles.imageContainer}>
-          <Animated.Image
+          <Image
             source={{ uri: product.image }}
             style={styles.image}
             resizeMode="cover"
