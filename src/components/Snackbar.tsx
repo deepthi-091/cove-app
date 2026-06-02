@@ -23,7 +23,7 @@ export const Snackbar: React.FC<SnackbarProps> = ({
   visible,
   onDismiss,
 }) => {
-  const [slideAnim] = useState(new Animated.Value(-100));
+  const [slideAnim] = useState(new Animated.Value(100));
 
   useEffect(() => {
     if (visible) {
@@ -43,7 +43,7 @@ export const Snackbar: React.FC<SnackbarProps> = ({
 
   const dismissSnackbar = () => {
     Animated.timing(slideAnim, {
-      toValue: -100,
+      toValue: 100,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -91,7 +91,7 @@ export const Snackbar: React.FC<SnackbarProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',

@@ -24,7 +24,7 @@ export const api = {
   // User authentication
   async login(email: string, password: string): Promise<any> {
     await delay(1000);
-    const validEmails = ['hannah@example.com', 'test@example.com', 'user@example.com'];
+    const validEmails = ['hannah@example.com', 'test@example.com', 'user@example.com', 'john@example.com'];
     const validPassword = 'password';
 
     if (validEmails.includes(email.toLowerCase()) && password === validPassword) {

@@ -49,8 +49,10 @@ describe('Form Validation', () => {
   describe('URL Validation', () => {
     const isValidURL = (url: string): boolean => {
       try {
-        new URL(url.startsWith('http') ? url : `https://${url}`);
-        return true;
+        const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+        new URL(fullUrl);
+        const hostname = new URL(fullUrl).hostname;
+        return hostname.includes('.') && !hostname.includes('..') && !hostname.startsWith('.') && !hostname.endsWith('.');
       } catch {
         return false;
       }
