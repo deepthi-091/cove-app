@@ -1,0 +1,7 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Snackbar Component Rendering Details should match snapshot for error snackbar 1`] = `null`;
+
+exports[`Snackbar Component Rendering Details should match snapshot for info snackbar 1`] = `null`;
+
+exports[`Snackbar Component Rendering Details should match snapshot for success snackbar 1`] = `null`;
