@@ -7,6 +7,7 @@ interface ButtonProps {
   onPress: () => void;
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
+  testID?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -14,9 +15,11 @@ export const Button: React.FC<ButtonProps> = ({
   onPress,
   variant = 'primary',
   disabled = false,
+  testID,
 }) => {
   return (
     <TouchableOpacity
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       style={[

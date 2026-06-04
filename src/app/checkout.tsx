@@ -25,6 +25,8 @@ export default function Checkout() {
   const [selectedPayment, setSelectedPayment] = useState('0');
   const [loading, setLoading] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
+  const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [orderId, setOrderId] = useState<string>('');
   const [addresses, setAddresses] = useState([
     { id: '0', title: 'Home', address: '123 Main St, New York, NY 10001' },
     { id: '1', title: 'Office', address: '456 Business Ave, New York, NY 10002' },
@@ -83,22 +85,34 @@ export default function Checkout() {
     try {
       const order = await api.createOrder(items);
       dispatch(clearCart());
-
-      Alert.alert(
-        'Order Placed Successfully! 🎉',
-        `Order ID: ${order.id}\n\nTotal: $${order.total.toFixed(2)}\n\nYour order has been confirmed and will be delivered soon!`,
-        [
-          {
-            text: 'Continue Shopping',
-            onPress: () => router.replace('/tabs' as any),
-          },
-        ]
-      );
+      setOrderId(order.id);
+      setOrderConfirmed(true);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to place order');
     }
     setLoading(false);
   };
+
+  if (orderConfirmed) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>✅</Text>
+          <Text style={styles.confirmTitle}>Order Confirmed!</Text>
+          <Text style={styles.confirmText}>Thank you for your order</Text>
+          <View style={styles.orderInfoBox}>
+            <Text style={styles.orderLabel}>Order Number</Text>
+            <Text testID="orderNumber" style={styles.orderNumber}>{orderId}</Text>
+            <Text style={styles.orderSubtext}>Save this for your records</Text>
+          </View>
+          <Button
+            label="Continue Shopping"
+            onPress={() => router.replace('/tabs' as any)}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -409,5 +423,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: SIZES.md,
+  },
+  confirmTitle: {
+    fontSize: SIZES.fontSize['2xl'],
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: SIZES.md,
+  },
+  confirmText: {
+    fontSize: SIZES.fontSize.base,
+    color: COLORS.lightText,
+    marginBottom: SIZES.xl,
+  },
+  orderInfoBox: {
+    backgroundColor: COLORS.lightGray,
+    paddingHorizontal: SIZES.lg,
+    paddingVertical: SIZES.xl,
+    borderRadius: SIZES.borderRadius.md,
+    marginBottom: SIZES.xl,
+    alignItems: 'center',
+  },
+  orderLabel: {
+    fontSize: SIZES.fontSize.sm,
+    color: COLORS.lightText,
+    marginBottom: SIZES.xs,
+  },
+  orderNumber: {
+    fontSize: SIZES.fontSize.xl,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: SIZES.sm,
+  },
+  orderSubtext: {
+    fontSize: SIZES.fontSize.xs,
+    color: COLORS.lightText,
   },
 });

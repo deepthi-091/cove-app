@@ -205,6 +205,7 @@ export default function Profile() {
           </View>
 
           <TouchableOpacity
+            testID="logoutButton"
             style={styles.signOutButton}
             onPress={handleSignOut}
           >

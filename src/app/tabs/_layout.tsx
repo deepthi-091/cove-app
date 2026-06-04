@@ -29,7 +29,8 @@ export default function TabsLayout() {
           title: 'Shop',
           tabBarLabel: 'Shop',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>🏠</Text>,
-        }}
+          tabBarTestID: 'shopTab',
+        } as any}
       />
       <Tabs.Screen
         name="search"
@@ -37,7 +38,8 @@ export default function TabsLayout() {
           title: 'Search',
           tabBarLabel: 'Search',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>🔍</Text>,
-        }}
+          tabBarTestID: 'searchTab',
+        } as any}
       />
       <Tabs.Screen
         name="wishlist"
@@ -45,7 +47,8 @@ export default function TabsLayout() {
           title: 'Wishlist',
           tabBarLabel: 'Wishlist',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>❤️</Text>,
-        }}
+          tabBarTestID: 'wishlistTab',
+        } as any}
       />
       <Tabs.Screen
         name="profile"
@@ -53,7 +56,8 @@ export default function TabsLayout() {
           title: 'Profile',
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>👤</Text>,
-        }}
+          tabBarTestID: 'profileTab',
+        } as any}
       />
       <Tabs.Screen
         name="users"
@@ -61,7 +65,8 @@ export default function TabsLayout() {
           title: 'Users',
           tabBarLabel: 'Users',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 24 }}>👥</Text>,
-        }}
+          tabBarTestID: 'usersTab',
+        } as any}
       />
     </Tabs>
   );

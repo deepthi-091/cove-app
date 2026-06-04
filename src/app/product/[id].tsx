@@ -93,7 +93,7 @@ export default function ProductDetail() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.white }}>
+    <SafeAreaView testID="productDetailScreen" style={{ flex: 1, backgroundColor: COLORS.white }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
@@ -164,6 +164,7 @@ export default function ProductDetail() {
 
           {/* Add to Cart Button */}
           <Button
+            testID="addToCartButton"
             label={isAuthenticated ? `Add to Cart - $${product.price}` : 'Login to Add to Cart'}
             onPress={handleAddToCart}
           />
@@ -228,7 +229,7 @@ export default function ProductDetail() {
         />
 
         {/* Comments Section */}
-        <CommentsSection productId={Number(product.id) || 1} />
+        <CommentsSection testID="commentsSection" productId={Number(product.id) || 1} />
       </ScrollView>
     </SafeAreaView>
   );

@@ -112,7 +112,7 @@ export default function Cart() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView testID="cartScreen" style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.replace('/tabs' as any)}>
           <Text style={styles.backButton}>‹ Back</Text>
@@ -128,7 +128,7 @@ export default function Cart() {
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <Animated.View style={styles.cartItem}>
             <Image
               source={{ uri: item.image || 'https://via.placeholder.com/80' }}
@@ -146,7 +146,7 @@ export default function Cart() {
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
             </View>
             <View style={styles.itemRight}>
-              <TouchableOpacity onPress={() => handleRemove(item.id)}>
+              <TouchableOpacity testID={`removeButton-${index}`} onPress={() => handleRemove(item.id)}>
                 <Text style={styles.removeButton}>🗑️</Text>
               </TouchableOpacity>
               <View style={styles.quantityControl}>
@@ -156,8 +156,9 @@ export default function Cart() {
                 >
                   <Text style={styles.quantityButtonText}>−</Text>
                 </TouchableOpacity>
-                <Text style={styles.quantity}>{item.quantity}</Text>
+                <Text testID={`quantity-${index}`} style={styles.quantity}>{item.quantity}</Text>
                 <TouchableOpacity
+                  testID={`increaseQuantity-${index}`}
                   onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
                   style={styles.quantityButton}
                 >
@@ -181,12 +182,13 @@ export default function Cart() {
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${totalPrice.toFixed(2)}</Text>
+            <Text testID="cartTotal" style={styles.totalValue}>${totalPrice.toFixed(2)}</Text>
           </View>
         </View>
         {/* Animated checkout button press effect */}
         <Animated.View style={{ transform: [{ scale: checkoutScale }] }}>
           <TouchableOpacity
+            testID="checkoutButton"
             style={styles.checkoutButton}
             onPressIn={() => Animated.spring(checkoutScale, { toValue: 0.96, useNativeDriver: true, speed: 50 }).start()}
             onPressOut={animateCheckoutPress}

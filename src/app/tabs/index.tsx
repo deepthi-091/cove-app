@@ -78,7 +78,7 @@ export default function Home() {
   }, [isAuthenticated, dispatch]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView testID="homeScreen" style={styles.container}>
       {loading && products.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -87,8 +87,9 @@ export default function Home() {
       ) : (
         <FlatList
           data={products}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <ProductCard
+              testID={`productCard-${index}`}
               product={item}
               onPress={() => {
                 try {
@@ -118,12 +119,13 @@ export default function Home() {
                 <View style={styles.headerRight}>
                   <LoginBadge />
                   <TouchableOpacity
+                    testID="cartTab"
                     style={styles.cartIcon}
                     onPress={() => router.push('/cart' as any)}
                   >
                     <Text style={styles.cartText}>🛒</Text>
                     {cartTotal > 0 && (
-                      <Animated.View style={[styles.cartBadge, { transform: [{ scale: cartBounce }] }]}>
+                      <Animated.View testID="cartBadge" style={[styles.cartBadge, { transform: [{ scale: cartBounce }] }]}>
                         <Text style={styles.cartBadgeText}>{cartTotal}</Text>
                       </Animated.View>
                     )}

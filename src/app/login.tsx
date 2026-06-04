@@ -59,6 +59,7 @@ export default function Login() {
         <View style={styles.form}>
           <Text style={styles.label}>{STRINGS.login_email}</Text>
           <Input
+            testID="emailInput"
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
@@ -73,6 +74,7 @@ export default function Login() {
             </TouchableOpacity>
           </View>
           <Input
+            testID="passwordInput"
             placeholder="Password"
             value={password}
             onChangeText={setPassword}
@@ -81,6 +83,7 @@ export default function Login() {
           />
 
           <Button
+            testID="loginButton"
             label={loading ? 'Signing in...' : STRINGS.login_button}
             onPress={handleLogin}
             disabled={loading}
@@ -119,6 +122,7 @@ export default function Login() {
           <Text style={styles.footerText}>
             {STRINGS.login_new_user}{' '}
             <Text
+              testID="signupLink"
               style={styles.createLink}
               onPress={() => router.push('/signup')}
             >

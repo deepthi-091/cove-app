@@ -41,9 +41,10 @@ interface SnackbarState {
 
 interface CommentsSectionProps {
   productId: number;
+  testID?: string;
 }
 
-export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) => {
+export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId, testID }) => {
   const { user, isAuthenticated } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +240,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
   );
 
   return (
-    <View style={styles.container}>
+    <View testID={testID || 'commentsSection'} style={styles.container}>
       <Snackbar
         visible={snackbar.visible}
         message={snackbar.message}
@@ -256,7 +257,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
             <Text style={styles.liveBadge}>🔴 Live</Text>
           )}
         </View>
-        <TouchableOpacity style={styles.addCommentButton} onPress={openAddModal} activeOpacity={0.7}>
+        <TouchableOpacity testID="addCommentButton" style={styles.addCommentButton} onPress={openAddModal} activeOpacity={0.7}>
           <Text style={styles.addCommentButtonText}>+ Add Comment</Text>
         </TouchableOpacity>
       </View>
@@ -272,14 +273,20 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
         </View>
       ) : (
         <FlatList
+          testID="commentsList"
           data={comments}
-          renderItem={renderComment}
+          renderItem={({ item, index }) => (
+            <View testID={`editComment-${index}`}>
+              {renderComment({ item })}
+            </View>
+          )}
           keyExtractor={item => String(item.id)}
           scrollEnabled={false}
         />
       )}
 
       <Modal
+        testID="commentModal"
         visible={showModal}
         animationType="slide"
         transparent
@@ -320,6 +327,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
                       </View>
 
                       <Input
+                        testID="commentInput"
                         label="Your Comment *"
                         placeholder="Share your thoughts (min. 10 characters)..."
                         value={values.body}
@@ -341,6 +349,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ productId }) =
 
                     <View style={styles.modalFooter}>
                       <Button
+                        testID={editingComment ? 'updateCommentButton' : 'postCommentButton'}
                         label={isSubmitting ? 'Saving...' : (editingComment ? 'Update Comment' : 'Post Comment')}
                         onPress={() => handleSubmit()}
                       />

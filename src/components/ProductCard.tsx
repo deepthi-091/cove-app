@@ -16,12 +16,13 @@ interface ProductCardProps {
   product: Product;
   onPress: () => void;
   onAddToCart?: () => void;
+  testID?: string;
 }
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - SIZES.screenPadding * 2 - SIZES.md) / 2;
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onAddToCart }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onAddToCart, testID }) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onAd
 
   return (
     <TouchableOpacity
+      testID={testID}
       activeOpacity={0.8}
       onPress={onPress}
     >

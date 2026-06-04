@@ -1,0 +1,24 @@
+{
+  "testRunner": "jest",
+  "testRunnerArgs": {
+    "testTimeout": 120000
+  },
+  "apps": {
+    "android": {
+      "type": "android.apk",
+      "binaryPath": "android\\app\\build\\outputs\\apk\\release\\app-release.apk",
+      "build": "cd android && gradlew.bat assembleRelease assembleAndroidTest -DtestBuildType=release && cd .."
+    }
+  },
+  "configurations": {
+    "android.emu.debug": {
+      "device": {
+        "type": "Android",
+        "device": {
+          "avdName": "Pixel_9_Pro_XL"
+        }
+      },
+      "app": "android"
+    }
+  }
+}
