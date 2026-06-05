@@ -39,6 +39,13 @@ declare global {
       toHaveText(text: string): Promise<void>;
     }
   }
+
+  function describe(name: string, fn: () => void): void;
+  function it(name: string, fn: () => Promise<void>): void;
+  function beforeAll(fn: () => Promise<void>): void;
+  function afterAll(fn: () => Promise<void>): void;
+  function beforeEach(fn: () => Promise<void>): void;
+  function afterEach(fn: () => Promise<void>): void;
 }
 
 export {};

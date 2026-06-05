@@ -9,9 +9,19 @@ declare const afterAll: any;
 const detox = require('detox');
 
 beforeAll(async () => {
-  await detox.init();
+  try {
+    await detox.init();
+  } catch (error) {
+    console.error('Error initializing Detox:', error);
+    throw error;
+  }
 });
 
 afterAll(async () => {
-  await detox.cleanup();
+  try {
+    await detox.cleanup();
+  } catch (error) {
+    console.error('Error cleaning up Detox:', error);
+    // Don't throw - allow tests to complete even if cleanup fails
+  }
 });
