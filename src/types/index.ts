@@ -46,3 +46,5 @@ export interface Category {
   name: string;
   icon?: string;
 }
+
+export * from './notifications';

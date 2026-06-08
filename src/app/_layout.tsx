@@ -5,6 +5,8 @@ import { Provider } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, rehydrateCart } from '@/redux/store';
 import { AuthProvider } from '@/context/AuthContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import { NotificationBanner } from '@/components/NotificationBanner';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -15,7 +17,11 @@ function AppProviders({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     rehydrateCart();
   }, []);
-  return <AuthProvider>{children}</AuthProvider>;
+  return (
+    <AuthProvider>
+      <NotificationProvider>{children}</NotificationProvider>
+    </AuthProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -34,7 +40,10 @@ export default function RootLayout() {
             <Stack.Screen name="report-damage" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="cart" options={{ headerShown: false }} />
             <Stack.Screen name="checkout" options={{ headerShown: false }} />
+            <Stack.Screen name="notifications" options={{ headerShown: false }} />
+            <Stack.Screen name="notification-preferences" options={{ presentation: 'modal', headerShown: false }} />
           </Stack>
+          <NotificationBanner />
         </AppProviders>
       </Provider>
     </GestureHandlerRootView>

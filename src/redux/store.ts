@@ -1,6 +1,7 @@
 import { configureStore, type Middleware } from '@reduxjs/toolkit';
 import { cartReducer } from './cart/cartReducer';
 import productReducer from './products/productSlice';
+import notificationReducer from './notifications/notificationSlice';
 import { rootSaga } from './sagas/rootSaga';
 import { storage } from '@/utils/storage';
 import { sqliteCart } from '@/lib/sqlite';
@@ -28,6 +29,7 @@ export const store = configureStore({
   reducer: {
     cart: cartReducer,
     products: productReducer,
+    notifications: notificationReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
